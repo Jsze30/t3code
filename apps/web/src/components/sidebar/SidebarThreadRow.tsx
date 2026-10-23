@@ -1236,7 +1236,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       {...sortableRootProps}
       {...(fileDropHandlers ?? {})}
       className={cn(
-        "list-none py-0.5 [content-visibility:auto] [contain-intrinsic-size:auto_64px]",
+        "list-none py-0.5 [content-visibility:auto] [contain-intrinsic-size:auto_70px]",
         sortable?.isDragging && "relative z-20",
       )}
     >
@@ -1260,7 +1260,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           }
         >
           {accessibleTitle}
-          <div className="relative z-10 h-[3.75rem] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
+          <div className="relative z-10 h-[4.125rem] px-(--sidebar-row-content-inset) py-(--sidebar-content-inset)">
             <div className="flex h-5 min-w-0 items-center gap-1.5">
               {draftIndicator}
               {props.project ? (
