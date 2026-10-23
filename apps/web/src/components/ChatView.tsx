@@ -169,6 +169,7 @@ import { useDeviceState } from "~/state/device";
 import { BranchToolbar, type BranchToolbarHandle } from "./BranchToolbar";
 import { makeWorkspaceFileDropHandlers } from "./chat/workspaceFileDrop";
 import { isEditableFocused } from "../lib/editableFocus";
+import { isContextMenuOpen } from "../contextMenuFallback";
 import { DEFAULT_RESOLVED_KEYBINDINGS } from "@t3tools/shared/keybindings";
 import { shortcutLabelForCommand } from "../keybindings";
 import { cn } from "~/lib/utils";
@@ -394,6 +395,19 @@ type ChatViewProps =
     };
 
 const EMPTY_HELD_TURN_DIFF_SUMMARIES: readonly never[] = [];
+const ESCAPE_DISMISSIBLE_POPUP_SELECTOR = [
+  "alert-dialog",
+  "autocomplete",
+  "combobox",
+  "command-dialog",
+  "dialog",
+  "menu",
+  "popover",
+  "select",
+  "sheet",
+]
+  .map((slot) => `[data-slot="${slot}-popup"]`)
+  .join(",");
 const noopHeldTurnDiff = (_turnId: RunId, _filePath?: string) => {};
 const noopHeldRevert = (_targetTurnCount: number) => {};
 const noopHeldAttachment = (_attachment: ChatFileAttachment) => {};
@@ -2741,6 +2755,15 @@ export default function ChatView(props: ChatViewProps) {
         queuedRunsControlRef.current?.editLatest(event.repeat) === true,
       "thread.stop": ({ event }) => {
         if (!canInterruptRunningThread) return false;
+        // Shortcuts run in the capture phase, so leave Escape to whatever popup it would close.
+        if (
+          event.key === "Escape" &&
+          (event.isComposing ||
+            composerRef.current?.isCommandMenuOpen() === true ||
+            isContextMenuOpen() ||
+            document.querySelector(ESCAPE_DISMISSIBLE_POPUP_SELECTOR) !== null)
+        )
+          return false;
         if (!event.repeat) void onInterruptStable();
       },
     },
