@@ -638,6 +638,8 @@ type SidebarThreadRowProps = {
   onUnpin: (threadRef: ScopedThreadRef) => void;
   onAcknowledgeWoke: (threadRef: ScopedThreadRef, visitedAt: string) => void;
   onFileDropThreads?: ((threadRef: ScopedThreadRef, files: File[]) => void) | undefined;
+  /** Slim rows show the time; a lead's worker rows show Working or Done instead. */
+  showStatus?: boolean;
 };
 
 // Mounted only while renaming, so each rename starts uncommitted.
@@ -1467,6 +1469,16 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                         <T>Un-settle thread</T>
                       </TooltipPopup>
                     </Tooltip>
+                  ) : props.showStatus && topStatus ? (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 text-xs font-medium",
+                        topStatus.className,
+                      )}
+                    >
+                      <TopStatusIcon icon={topStatus.icon} className="size-4" />
+                      {topStatus.label}
+                    </span>
                   ) : (
                     <Tooltip>
                       <TooltipTrigger
