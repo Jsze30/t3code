@@ -3438,6 +3438,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             onAcknowledgeWoke={acknowledgeWoke}
                             onFileDropThreads={handleThreadFileDrop}
                             showStatus={worker}
+                            isLead={!worker && workersByLeadKey.has(threadKey)}
                           />
                         );
                       };

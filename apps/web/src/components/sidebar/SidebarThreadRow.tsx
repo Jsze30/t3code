@@ -40,6 +40,7 @@ import {
   ClockIcon,
   GitBranchIcon,
   MessageCircleQuestionIcon,
+  NetworkIcon,
   PinIcon,
   PinOffIcon,
   ShieldQuestionIcon,
@@ -587,6 +588,8 @@ type SidebarThreadRowProps = {
   onFileDropThreads?: ((threadRef: ScopedThreadRef, files: File[]) => void) | undefined;
   /** Slim rows show the time; a lead's worker rows show Working or Done instead. */
   showStatus?: boolean;
+  /** The thread has workers listed under it. */
+  isLead?: boolean;
 };
 
 // Mounted only while renaming, so each rename starts uncommitted.
@@ -1431,6 +1434,13 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               {/* Left of the status slot, the pin would slide when hover swaps the
                 label for the wider row controls. */}
               {pinIndicator}
+              {props.isLead ? (
+                <NetworkIcon
+                  aria-label="Has workers"
+                  role="img"
+                  className="size-3 shrink-0 text-muted-foreground/65"
+                />
+              ) : null}
               {props.projectDisplayName ? (
                 <span
                   className={cn("min-w-0 flex-1 truncate font-normal text-secondary-label text-xs")}
