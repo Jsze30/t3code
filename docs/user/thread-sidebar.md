@@ -162,7 +162,9 @@ cannot drag threads, and the Working section is off. Each device keeps its own c
 ## Lead and worker threads
 
 On web and desktop, threads that an agent starts with `t3_thread_launch` or `create_threads` show under the thread that started them instead of in the main list.
-Click the workers row under a lead to show or hide them.
+Click the arrow and count before a lead's title to show or hide them.
+A thread that launched workers always stays in the main list as a lead.
+An agent can start a separate lead instead of a worker with `standalone: true`.
 A worker that is pinned, snoozed, or settled stays in that section.
 
 ## Settle finished work
