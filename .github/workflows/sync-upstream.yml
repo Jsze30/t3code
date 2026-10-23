@@ -35,7 +35,9 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
+          # The upstream remote added above would otherwise make gh target pingdotgg/t3code.
+          GH_REPO: ${{ github.repository }}
         run: |
-          gh workflow list --all --json path,state \
-            -q '.[] | select(.state == "active" and .path != ".github/workflows/sync-upstream.yml") | .path | split("/") | last' \
+          gh workflow list --all --json id,path,state \
+            -q '.[] | select(.state == "active" and (.path | startswith(".github/workflows/")) and .path != ".github/workflows/sync-upstream.yml") | .id' \
             | xargs -r -n1 gh workflow disable
