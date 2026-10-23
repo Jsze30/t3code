@@ -239,6 +239,7 @@ import {
   AlertDialogTitle,
 } from "./ui/alert-dialog";
 import { Button } from "./ui/button";
+import { Collapsible, CollapsiblePanel } from "./ui/collapsible";
 import {
   Combobox,
   ComboboxEmpty,
@@ -614,6 +615,7 @@ function useSidebarThreads(input: {
       setProjectExpanded(keys, !resolveProjectExpanded(projectExpandedById, keys));
     },
     visibleWorkersByLeadKey,
+    expandedLeadKeys,
     toggleLead: (leadKey: string) =>
       setExpandedLeadKeys((keys) =>
         keys.includes(leadKey) ? keys.filter((key) => key !== leadKey) : [...keys, leadKey],
@@ -1325,6 +1327,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     toggleProjectFolder,
     workersByLeadKey,
     visibleWorkersByLeadKey,
+    expandedLeadKeys,
     toggleLead,
     renderedSettledThreads,
     visibleSnoozedThreads,
@@ -3427,23 +3430,43 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         />,
                       ];
                       const pushLeadWorkers = (leadKey: string) => {
-                        const visibleWorkers = visibleWorkersByLeadKey.get(leadKey) ?? [];
-                        if (visibleWorkers.length === 0) return;
-                        items.push(
-                          <li key={`${leadKey}:workers`} className="list-none ps-4">
-                            <div className="flex h-6 items-center gap-2 px-2 text-xs text-sidebar-muted-foreground/60">
-                              <span className="shrink-0 tabular-nums">
-                                {`${visibleWorkers.length} ${visibleWorkers.length === 1 ? "worker" : "workers"}`}
-                              </span>
-                              <span aria-hidden className="h-px flex-1 bg-sidebar-border/60" />
-                            </div>
-                            <ul>
-                              {visibleWorkers.map((worker) =>
-                                renderThreadRow(worker, "active", undefined, true),
-                              )}
-                            </ul>
-                          </li>,
-                        );
+                        const leadWorkers = workersByLeadKey.get(leadKey);
+                        if (leadWorkers !== undefined) {
+                          const expanded = expandedLeadKeys.includes(leadKey);
+                          // A folded lead still shows the worker that is open.
+                          const openWorkers = expanded
+                            ? []
+                            : (visibleWorkersByLeadKey.get(leadKey) ?? []);
+                          items.push(
+                            <li key={`${leadKey}:workers`} className="list-none ps-4">
+                              <Collapsible open={expanded}>
+                                <CollapsiblePanel>
+                                  <div className="flex h-6 items-center gap-2 px-2 text-xs text-sidebar-muted-foreground/60">
+                                    <span className="shrink-0 tabular-nums">
+                                      {`${leadWorkers.length} ${leadWorkers.length === 1 ? "worker" : "workers"}`}
+                                    </span>
+                                    <span
+                                      aria-hidden
+                                      className="h-px flex-1 bg-sidebar-border/60"
+                                    />
+                                  </div>
+                                  <ul>
+                                    {leadWorkers.map((worker) =>
+                                      renderThreadRow(worker, "active", undefined, true),
+                                    )}
+                                  </ul>
+                                </CollapsiblePanel>
+                              </Collapsible>
+                              {openWorkers.length > 0 ? (
+                                <ul>
+                                  {openWorkers.map((worker) =>
+                                    renderThreadRow(worker, "active", undefined, true),
+                                  )}
+                                </ul>
+                              ) : null}
+                            </li>,
+                          );
+                        }
                       };
                       for (const item of sidebarListItems) {
                         if (item.kind === "thread") {
