@@ -556,6 +556,8 @@ type SidebarThreadRowProps = {
   onUnpin: (threadRef: ScopedThreadRef) => void;
   onAcknowledgeWoke: (threadRef: ScopedThreadRef, visitedAt: string) => void;
   onFileDropThreads?: ((threadRef: ScopedThreadRef, files: File[]) => void) | undefined;
+  /** Slim rows show the time; a lead's worker rows show Working or Done instead. */
+  showStatus?: boolean;
 };
 
 const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowProps) {
@@ -699,6 +701,20 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       }
                     : null;
   const isWokeStatus = topStatus?.icon === "woke";
+  const topStatusIcon =
+    topStatus?.icon === "working" ? (
+      <CircleDashedIcon aria-hidden className="size-4 shrink-0" />
+    ) : topStatus?.icon === "waiting" ? (
+      <CircleDotDashedIcon aria-hidden className="size-4 shrink-0" />
+    ) : topStatus?.icon === "input" ? (
+      <MessageCircleQuestionIcon aria-hidden className="size-4 shrink-0" />
+    ) : topStatus?.icon === "approval" ? (
+      <ShieldQuestionIcon aria-hidden className="size-4 shrink-0" />
+    ) : topStatus?.icon === "failed" ? (
+      <CircleAlertIcon aria-hidden className="size-4 shrink-0" />
+    ) : topStatus?.icon === "done" ? (
+      <CircleCheckIcon aria-hidden className="size-4 shrink-0" />
+    ) : null;
 
   const branchMismatch = resolveLocalCheckoutBranchMismatch({
     effectiveEnvMode: thread.worktreePath === null ? "local" : "worktree",
@@ -1158,6 +1174,16 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                       />
                       <TooltipPopup side="top">Dismiss Woke notification</TooltipPopup>
                     </Tooltip>
+                  ) : props.showStatus && topStatus ? (
+                    <span
+                      className={cn(
+                        "inline-flex items-center gap-1 text-xs font-medium",
+                        topStatus.className,
+                      )}
+                    >
+                      {topStatusIcon}
+                      {topStatus.label}
+                    </span>
                   ) : (
                     <span className="text-xs">
                       <RelativeTimeLabel
@@ -1327,19 +1353,7 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
                             topStatus.className,
                           )}
                         >
-                          {topStatus.icon === "working" ? (
-                            <CircleDashedIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "waiting" ? (
-                            <CircleDotDashedIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "input" ? (
-                            <MessageCircleQuestionIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "approval" ? (
-                            <ShieldQuestionIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "failed" ? (
-                            <CircleAlertIcon aria-hidden className="size-4 shrink-0" />
-                          ) : topStatus.icon === "done" ? (
-                            <CircleCheckIcon aria-hidden className="size-4 shrink-0" />
-                          ) : null}
+                          {topStatusIcon}
                           {/* Not a live region: a collapsed sidebar is inert, so
                             BackgroundThreadAnnouncer and the open thread's
                             timeline speak status changes instead. */}
