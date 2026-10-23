@@ -192,7 +192,6 @@ import {
   pendingSidebarRouteReveal,
   type SidebarRouteReveal,
 } from "./sidebar/routeReveal";
-import { CollapsibleSectionHeader } from "./ui/collapsible-section-header";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { Button } from "./ui/button";
 import {
@@ -286,6 +285,7 @@ const SETTLED_SHELF_EXPANDED_KEY = "t3code:sidebar:settled-expanded";
 const SNOOZED_SHELF_EXPANDED_KEY = "t3code:sidebar:snoozed-expanded";
 const WORKING_SHELF_EXPANDED_KEY = "t3code:sidebar:working-expanded";
 const EXPANDED_LEADS_KEY = "t3code:sidebar:expanded-leads";
+const ExpandedLeadKeys = Schema.Array(Schema.String);
 
 const inboxReturns = createInboxReturnTracker();
 
@@ -413,7 +413,7 @@ function useSidebarThreads(input: {
   const [expandedLeadKeys, setExpandedLeadKeys] = useLocalStorage(
     EXPANDED_LEADS_KEY,
     [],
-    Schema.Array(Schema.String),
+    ExpandedLeadKeys,
   );
   // The settled tail restarts whenever the project scope changes.
   const [settledTail, setSettledTail] = useState({
@@ -2992,6 +2992,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         const threadKey = scopedThreadKey(
                           scopeThreadRef(thread.environmentId, thread.id),
                         );
+                        const workerCount = worker
+                          ? 0
+                          : (workersByLeadKey.get(threadKey)?.length ?? 0);
                         const isCard =
                           !worker &&
                           (section === "active" || section === "pinned" || section === "working");
@@ -3093,6 +3096,15 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             onUnpin={attemptUnpin}
                             onAcknowledgeWoke={acknowledgeWoke}
                             onFileDropThreads={handleThreadFileDrop}
+                            {...(workerCount === 0
+                              ? {}
+                              : {
+                                  workers: {
+                                    count: workerCount,
+                                    expanded: expandedLeadKeys.includes(threadKey),
+                                    onToggle: () => toggleLead(threadKey),
+                                  },
+                                })}
                           />
                         );
                       };
@@ -3111,24 +3123,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       for (const item of sidebarListItems) {
                         if (item.kind === "thread") {
                           items.push(renderThreadRow(threadByKey.get(item.key)!, item.section));
-                          const workers = workersByLeadKey.get(item.key);
-                          if (workers !== undefined) {
-                            const expanded = expandedLeadKeys.includes(item.key);
-                            const workingCount = workers.filter(isSidebarThreadWorking).length;
+                          const visibleWorkers = visibleWorkersByLeadKey.get(item.key) ?? [];
+                          if (visibleWorkers.length > 0) {
                             items.push(
                               <li key={`${item.key}:workers`} className="list-none ps-4">
-                                <CollapsibleSectionHeader
-                                  expanded={expanded}
-                                  onClick={() => toggleLead(item.key)}
-                                >
-                                  {`${workers.length} ${workers.length === 1 ? "worker" : "workers"}${
-                                    !expanded && workingCount > 0
-                                      ? ` · ${workingCount} working`
-                                      : ""
-                                  }`}
-                                </CollapsibleSectionHeader>
                                 <ul>
-                                  {(visibleWorkersByLeadKey.get(item.key) ?? []).map((worker) =>
+                                  {visibleWorkers.map((worker) =>
                                     renderThreadRow(worker, "active", true),
                                   )}
                                 </ul>
