@@ -399,6 +399,30 @@ function resolveDraggedOrders(input: {
   };
 }
 
+/** A lead's worker rows. Reorders slide like the main list instead of jumping. */
+function SidebarWorkerList(props: { readonly orderKey: string; readonly children: ReactNode }) {
+  const motionRef = useRef<ReturnType<typeof createSidebarListMotion> | null>(null);
+  const attach = (node: HTMLUListElement | null) => {
+    motionRef.current?.dispose();
+    motionRef.current = node === null ? null : createSidebarListMotion(node);
+    motionRef.current?.update(false);
+    return () => {
+      motionRef.current?.dispose();
+      motionRef.current = null;
+    };
+  };
+  // Cached on the order key, so the effect runs only when the rows reorder.
+  const pass = { orderKey: props.orderKey, animate: true };
+  useLayoutEffect(() => {
+    motionRef.current?.update(pass.animate);
+  }, [pass]);
+  return (
+    <ul ref={attach} className="relative">
+      {props.children}
+    </ul>
+  );
+}
+
 function routeThreadOnly(
   threads: readonly EnvironmentThreadShell[],
   routeThreadKey: string | null,
@@ -3450,11 +3474,13 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                       className="h-px flex-1 bg-sidebar-border/60"
                                     />
                                   </div>
-                                  <ul>
+                                  <SidebarWorkerList
+                                    orderKey={leadWorkers.map(threadShellKey).join("\n")}
+                                  >
                                     {leadWorkers.map((worker) =>
                                       renderThreadRow(worker, "active", undefined, true),
                                     )}
-                                  </ul>
+                                  </SidebarWorkerList>
                                 </CollapsiblePanel>
                               </Collapsible>
                               {openWorkers.length > 0 ? (
