@@ -735,7 +735,16 @@ function partitionSidebarThreads(input: SidebarThreadPartitionInput) {
     activeReorderableThreadKeys,
     activeThreads: grouped.active,
     workingThreads: grouped.working,
-    workersByLeadKey: grouped.workersByLeadKey,
+    // Finished workers rise to the top of their lead; running ones wait at the bottom.
+    workersByLeadKey: new Map(
+      [...grouped.workersByLeadKey].map(([leadKey, workers]) => [
+        leadKey,
+        [
+          ...workers.filter((thread) => !isThreadWorking(thread)),
+          ...workers.filter((thread) => isThreadWorking(thread)),
+        ],
+      ]),
+    ),
     snoozedThreads: snoozed.toSorted(
       (left, right) =>
         firstValidTimestampMs(left.snoozedUntil ?? null) -
@@ -3292,8 +3301,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           scopeThreadRef(thread.environmentId, thread.id),
                         );
                         const isCard =
-                          !worker &&
-                          (section === "active" || section === "pinned" || section === "working");
+                          section === "active" || section === "pinned" || section === "working";
                         const rowVariant = folderRow
                           ? folderRowsMultiline
                             ? "folder-multiline"
