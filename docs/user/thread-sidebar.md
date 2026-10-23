@@ -159,6 +159,12 @@ needs you. Use the pen button on a folder, or right-click it, to start a thread 
 Pinned threads stay above the folders, and Snoozed and Settled stay below them. In this mode you
 cannot drag threads, and the Working section is off. Each device keeps its own choice.
 
+## Lead and worker threads
+
+On web and desktop, threads that an agent starts with `t3_thread_launch` or `create_threads` show under the thread that started them instead of in the main list.
+Click the workers row under a lead to show or hide them.
+A worker that is pinned, snoozed, or settled stays in that section.
+
 ## Settle finished work
 
 Choose **Settle thread** from its menu to move finished work out of the active list

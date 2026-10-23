@@ -182,6 +182,7 @@ import {
   filterSidebarV2VisibleThreads,
   groupSidebarThreadsByProject,
   sidebarFolderExpansionKeys,
+  groupSidebarWorkersUnderLeads,
   buildBulkTitleRegenerationContextMenuItem,
   buildBulkUnpinContextMenuItem,
   deleteSelectedThreadEntries,
@@ -236,6 +237,7 @@ import {
   type SidebarRouteReveal,
   useActiveRowReveal,
 } from "./sidebar/routeReveal";
+import { CollapsibleSectionHeader } from "./ui/collapsible-section-header";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { copyThreadReference } from "../lib/copyThreadReference";
 import { threadChipCopyTarget } from "@t3tools/client-runtime/thread-reference";
@@ -331,6 +333,7 @@ const SETTLED_TAIL_PAGE_COUNT = 25;
 const SETTLED_SHELF_EXPANDED_KEY = "t3code:sidebar:settled-expanded";
 const SNOOZED_SHELF_EXPANDED_KEY = "t3code:sidebar:snoozed-expanded";
 const WORKING_SHELF_EXPANDED_KEY = "t3code:sidebar:working-expanded";
+const EXPANDED_LEADS_KEY = "t3code:sidebar:expanded-leads";
 
 const inboxReturns = createInboxReturnTracker();
 
@@ -479,6 +482,11 @@ function useSidebarThreads(input: {
   // Shared with the old per-project sidebar, so folders keep their open state.
   const projectExpandedById = useUiStateStore((store) => store.projectExpandedById);
   const setProjectExpanded = useUiStateStore((store) => store.setProjectExpanded);
+  const [expandedLeadKeys, setExpandedLeadKeys] = useLocalStorage(
+    EXPANDED_LEADS_KEY,
+    [],
+    Schema.Array(Schema.String),
+  );
   const [settledTail, setSettledTail] = useState({
     scopeKey: projectScopeKey,
     count: SETTLED_TAIL_INITIAL_COUNT,
@@ -502,8 +510,14 @@ function useSidebarThreads(input: {
     clockKey: `${nowMinute}:${snoozeWakeClock}:${inboxReturnsVersion}`,
   });
 
-  const { pinnedThreads, activeThreads, workingThreads, snoozedThreads, settledThreads } =
-    partition;
+  const {
+    pinnedThreads,
+    activeThreads,
+    workingThreads,
+    snoozedThreads,
+    settledThreads,
+    workersByLeadKey,
+  } = partition;
   // Older settled threads load in pages; the shelf lists them only as far as they are loaded.
   const olderSettledShelf = useOlderSettledShelf({
     scopes: olderSettledScopes([...serverConfigs.keys()], scopedProjectKeys),
@@ -514,6 +528,19 @@ function useSidebarThreads(input: {
   useOlderSettledShelfGrowth(olderSettledShelf, listedSettledThreads);
   const settledCount =
     settledThreads.length + olderSettledShelf.unloadedCount(partition.visibleThreads);
+  // A folded lead still shows the worker that is open, like the folded shelves do.
+  const visibleWorkersByLeadKey = new Map(
+    [...workersByLeadKey].map(([leadKey, workers]) => [
+      leadKey,
+      expandedLeadKeys.includes(leadKey) ? workers : routeThreadOnly(workers, routeRowThreadKey),
+    ]),
+  );
+  const withVisibleWorkers = (list: readonly EnvironmentThreadShell[]) =>
+    list.flatMap((thread) => [
+      thread,
+      ...(visibleWorkersByLeadKey.get(threadShellKey(thread)) ?? []),
+    ]);
+  const allWorkers = [...workersByLeadKey.values()].flat();
   const visibleSettledThreads = (() => {
     const visible = listedSettledThreads.slice(0, settledVisibleCount);
     if (
@@ -557,11 +584,11 @@ function useSidebarThreads(input: {
           };
         });
   const orderedThreads = [
-    ...pinnedThreads,
-    ...(projectFolders === null
-      ? activeThreads
-      : projectFolders.flatMap((folder) => folder.threads)),
-    ...visibleWorkingThreads,
+    ...withVisibleWorkers(pinnedThreads),
+    ...withVisibleWorkers(
+      projectFolders === null ? activeThreads : projectFolders.flatMap((folder) => folder.threads),
+    ),
+    ...withVisibleWorkers(visibleWorkingThreads),
     ...visibleSnoozedThreads,
     ...renderedSettledThreads,
   ];
@@ -583,6 +610,7 @@ function useSidebarThreads(input: {
       ...pinnedThreads,
       ...activeThreads,
       ...workingThreads,
+      ...allWorkers,
       ...snoozedThreads,
       ...settledThreads,
     ],
@@ -606,6 +634,12 @@ function useSidebarThreads(input: {
       const keys = sidebarFolderExpansionKeys(group);
       setProjectExpanded(keys, !resolveProjectExpanded(projectExpandedById, keys));
     },
+    visibleWorkersByLeadKey,
+    expandedLeadKeys,
+    toggleLead: (leadKey: string) =>
+      setExpandedLeadKeys((keys) =>
+        keys.includes(leadKey) ? keys.filter((key) => key !== leadKey) : [...keys, leadKey],
+      ),
     renderedSettledThreads,
     visibleSnoozedThreads,
     visibleWorkingThreads,
@@ -700,18 +734,17 @@ function partitionSidebarThreads(input: SidebarThreadPartitionInput) {
     : workingShelfEnabled
       ? sortInboxThreadsByReturn(active, inboxObservation.returnedAt)
       : sortThreadsForSidebar(active);
-  return {
-    pinnedThreads:
-      optimisticDrop?.section !== "pinned" || optimisticDrop.order === null
-        ? sortedPinned
-        : orderItemsByPreferredIds({
-            items: sortedPinned,
-            preferredIds: optimisticDrop.order,
-            getId: (thread) => scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
-          }),
-    draggableThreadKeys,
-    activeReorderableThreadKeys,
-    activeThreads:
+  const pinnedThreads =
+    optimisticDrop?.section !== "pinned" || optimisticDrop.order === null
+      ? sortedPinned
+      : orderItemsByPreferredIds({
+          items: sortedPinned,
+          preferredIds: optimisticDrop.order,
+          getId: (thread) => scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
+        });
+  const grouped = groupSidebarWorkersUnderLeads({
+    pinned: pinnedThreads,
+    active:
       optimisticDrop?.section !== "active" || optimisticDrop.order === null
         ? sortedActive
         : orderItemsByPreferredIds({
@@ -719,7 +752,16 @@ function partitionSidebarThreads(input: SidebarThreadPartitionInput) {
             preferredIds: optimisticDrop.order,
             getId: (thread) => scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
           }),
-    workingThreads: sortWorkingThreadsBySend(working),
+    working: sortWorkingThreadsBySend(working),
+    keyOf: (environmentId, threadId) => scopedThreadKey(scopeThreadRef(environmentId, threadId)),
+  });
+  return {
+    pinnedThreads,
+    draggableThreadKeys,
+    activeReorderableThreadKeys,
+    activeThreads: grouped.active,
+    workingThreads: grouped.working,
+    workersByLeadKey: grouped.workersByLeadKey,
     snoozedThreads: snoozed.toSorted(
       (left, right) =>
         firstValidTimestampMs(left.snoozedUntil ?? null) -
@@ -1331,6 +1373,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     toggleWorkingShelf,
     projectFolders,
     toggleProjectFolder,
+    workersByLeadKey,
+    visibleWorkersByLeadKey,
+    expandedLeadKeys,
+    toggleLead,
     renderedSettledThreads,
     visibleSnoozedThreads,
     visibleWorkingThreads,
@@ -3310,12 +3356,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         section: SidebarSection,
                         // The tree row of the project folder this row sits in.
                         folderRow?: string,
+                        worker = false,
                       ) => {
                         const threadKey = scopedThreadKey(
                           scopeThreadRef(thread.environmentId, thread.id),
                         );
                         const isCard =
-                          section === "active" || section === "pinned" || section === "working";
+                          !worker &&
+                          (section === "active" || section === "pinned" || section === "working");
                         const rowVariant = folderRow
                           ? folderRowsMultiline
                             ? "folder-multiline"
@@ -3330,6 +3378,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             contextDrag={isContextDrag}
                             sortableDisabled={
                               projectFolders !== null ||
+                              worker ||
                               renamingThreadKey === threadKey ||
                               !draggableThreadKeys.has(threadKey) ||
                               optimisticDrop !== null
@@ -3437,11 +3486,35 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           onDraftContextMenu={handleDraftContextMenu}
                         />,
                       ];
+                      const pushLeadWorkers = (leadKey: string) => {
+                        const workers = workersByLeadKey.get(leadKey);
+                        if (workers === undefined) return;
+                        const expanded = expandedLeadKeys.includes(leadKey);
+                        const workingCount = workers.filter(isSidebarThreadWorking).length;
+                        items.push(
+                          <li key={`${leadKey}:workers`} className="list-none ps-4">
+                            <CollapsibleSectionHeader
+                              expanded={expanded}
+                              onClick={() => toggleLead(leadKey)}
+                            >
+                              {`${workers.length} ${workers.length === 1 ? "worker" : "workers"}${
+                                !expanded && workingCount > 0 ? ` · ${workingCount} working` : ""
+                              }`}
+                            </CollapsibleSectionHeader>
+                            <ul>
+                              {(visibleWorkersByLeadKey.get(leadKey) ?? []).map((worker) =>
+                                renderThreadRow(worker, "active", undefined, true),
+                              )}
+                            </ul>
+                          </li>,
+                        );
+                      };
                       for (const item of sidebarListItems) {
                         if (item.kind === "thread") {
                           // Folders draw active rows in their own place below.
                           if (projectFolders !== null && item.section === "active") continue;
                           items.push(renderThreadRow(threadByKey.get(item.key)!, item.section));
+                          pushLeadWorkers(item.key);
                           continue;
                         }
                         if (projectFolders !== null && item.marker === "active-placeholder") {
@@ -3464,6 +3537,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                   "active",
                                   sidebarFolderRowId(folder.group.projectKey),
                                 ),
+                              );
+                              pushLeadWorkers(
+                                scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
                               );
                             }
                           }
