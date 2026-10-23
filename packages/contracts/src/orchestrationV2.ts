@@ -192,6 +192,9 @@ export const OrchestrationV2AppThreadLineage = Schema.Struct({
   sideChat: Schema.optional(Schema.Boolean),
   /** An agent step of a workflow run, which the thread's `workflowRun` names. */
   workflowStep: Schema.optional(Schema.Boolean),
+  // The lead thread whose t3_thread_launch or create_threads call started this one. Unlike a
+  // parent it carries no fork or subagent behavior; clients only use it to group threads.
+  launchedByThreadId: Schema.optionalKey(ThreadId),
 });
 export type OrchestrationV2AppThreadLineage = typeof OrchestrationV2AppThreadLineage.Type;
 
@@ -3313,6 +3316,7 @@ export const OrchestrationV2Command = Schema.Union([
     ...OrchestrationV2CreationFields,
     commandId: CommandId,
     threadId: ThreadId,
+    launchedByThreadId: Schema.optionalKey(ThreadId),
     projectId: ProjectId,
     title: TrimmedNonEmptyString,
     titleRenamed: Schema.optional(Schema.Boolean),

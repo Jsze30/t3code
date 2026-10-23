@@ -3388,6 +3388,7 @@ const make = Effect.gen(function* () {
                   creationSource: "mcp",
                   commandId,
                   threadId,
+                  launchedByThreadId: parent.thread.id,
                   projectId: parent.thread.projectId,
                   title,
                   ...(request.title?.trim() ? { titleRenamed: true } : {}),

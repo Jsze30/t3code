@@ -477,6 +477,7 @@ export const layer = McpToolAccess.toLayer(ProjectToolkit, {
                   ...(input.outputSchema === undefined ? {} : { outputSchema: input.outputSchema }),
                 },
               }),
+          ...(caller === undefined ? {} : { launchedByThreadId: caller.id }),
           createdBy: "agent",
           creationSource: "mcp",
           ...(linkOrigin === undefined ? {} : { linkOrigin }),

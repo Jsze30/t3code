@@ -163,6 +163,12 @@ Pinned threads stay above the folders, and Snoozed and Settled stay below them. 
 can drag a thread onto the composer to mention it, but not within the sidebar, and the Working
 section is off. Each device keeps its own choice.
 
+## Lead and worker threads
+
+On web and desktop, threads that an agent starts with `t3_thread_launch` or `create_threads` show under the thread that started them instead of in the main list.
+Click the workers row under a lead to show or hide them.
+A worker that is pinned, snoozed, or settled stays in that section.
+
 ## Settle finished work
 
 Choose **Settle thread** from its menu to move finished work out of the active list
