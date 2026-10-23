@@ -97,6 +97,7 @@ export interface ThreadLaunchInput {
     };
     readonly metadata?: OrchestrationV2ProviderThreadNativeMetadata;
   };
+  readonly launchedByThreadId?: ThreadId;
   readonly createdBy: OrchestrationV2Actor;
   readonly creationSource: OrchestrationV2CreationSource;
   /** The linked environment this launch is for, if one asked for it. */
@@ -920,6 +921,9 @@ const make = Effect.gen(function* () {
                 ...(input.delegatedFrom === undefined
                   ? {}
                   : { delegatedFrom: input.delegatedFrom }),
+                ...(input.launchedByThreadId === undefined
+                  ? {}
+                  : { launchedByThreadId: input.launchedByThreadId }),
                 createdBy: input.createdBy,
                 creationSource: input.creationSource,
               });
