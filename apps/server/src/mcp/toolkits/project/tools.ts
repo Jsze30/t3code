@@ -133,6 +133,12 @@ const ThreadLaunchTool = Tool.make("t3_thread_launch", {
           "No project: a new Scratch folder. Not with `projectId` or `workspaceStrategy`.",
       }),
     ),
+    standalone: Schema.optional(
+      Schema.Boolean.annotate({
+        description:
+          "Start a separate lead thread instead of a worker of the calling thread. Clients group workers under the thread that launched them; set this when the user asks for a new lead.",
+      }),
+    ),
     title: TrimmedNonEmptyString,
     modelSelection: Schema.optional(ModelSelection),
     runtimeMode: Schema.optional(RuntimeMode),

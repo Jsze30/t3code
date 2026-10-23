@@ -227,7 +227,6 @@ import {
   type SidebarRouteReveal,
   useActiveRowReveal,
 } from "./sidebar/routeReveal";
-import { CollapsibleSectionHeader } from "./ui/collapsible-section-header";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { copyThreadReference } from "../lib/copyThreadReference";
 import { threadChipCopyTarget } from "@t3tools/client-runtime/thread-reference";
@@ -323,6 +322,7 @@ const SETTLED_SHELF_EXPANDED_KEY = "t3code:sidebar:settled-expanded";
 const SNOOZED_SHELF_EXPANDED_KEY = "t3code:sidebar:snoozed-expanded";
 const WORKING_SHELF_EXPANDED_KEY = "t3code:sidebar:working-expanded";
 const EXPANDED_LEADS_KEY = "t3code:sidebar:expanded-leads";
+const ExpandedLeadKeys = Schema.Array(Schema.String);
 
 const inboxReturns = createInboxReturnTracker();
 
@@ -457,7 +457,7 @@ function useSidebarThreads(input: {
   const [expandedLeadKeys, setExpandedLeadKeys] = useLocalStorage(
     EXPANDED_LEADS_KEY,
     [],
-    Schema.Array(Schema.String),
+    ExpandedLeadKeys,
   );
   const [settledTail, setSettledTail] = useState({
     scopeKey: projectScopeKey,
@@ -3245,6 +3245,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         const threadKey = scopedThreadKey(
                           scopeThreadRef(thread.environmentId, thread.id),
                         );
+                        const workerCount = worker
+                          ? 0
+                          : (workersByLeadKey.get(threadKey)?.length ?? 0);
                         const isCard =
                           !worker &&
                           (section === "active" || section === "pinned" || section === "working");
@@ -3355,6 +3358,15 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             onUnpin={attemptUnpin}
                             onAcknowledgeWoke={acknowledgeWoke}
                             onFileDropThreads={handleThreadFileDrop}
+                            {...(workerCount === 0
+                              ? {}
+                              : {
+                                  workers: {
+                                    count: workerCount,
+                                    expanded: expandedLeadKeys.includes(threadKey),
+                                    onToggle: () => toggleLead(threadKey),
+                                  },
+                                })}
                           />
                         );
                       };
@@ -3371,22 +3383,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         />,
                       ];
                       const pushLeadWorkers = (leadKey: string) => {
-                        const workers = workersByLeadKey.get(leadKey);
-                        if (workers === undefined) return;
-                        const expanded = expandedLeadKeys.includes(leadKey);
-                        const workingCount = workers.filter(isSidebarThreadWorking).length;
+                        const visibleWorkers = visibleWorkersByLeadKey.get(leadKey) ?? [];
+                        if (visibleWorkers.length === 0) return;
                         items.push(
                           <li key={`${leadKey}:workers`} className="list-none ps-4">
-                            <CollapsibleSectionHeader
-                              expanded={expanded}
-                              onClick={() => toggleLead(leadKey)}
-                            >
-                              {`${workers.length} ${workers.length === 1 ? "worker" : "workers"}${
-                                !expanded && workingCount > 0 ? ` · ${workingCount} working` : ""
-                              }`}
-                            </CollapsibleSectionHeader>
                             <ul>
-                              {(visibleWorkersByLeadKey.get(leadKey) ?? []).map((worker) =>
+                              {visibleWorkers.map((worker) =>
                                 renderThreadRow(worker, "active", undefined, true),
                               )}
                             </ul>

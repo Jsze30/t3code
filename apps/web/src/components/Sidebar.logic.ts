@@ -616,9 +616,9 @@ export function resolveSidebarRowThreadId(
 
 /**
  * Active and working threads that a lead launched leave their section and show
- * under the lead instead. A worker that launched its own workers stays a single
- * level: everything joins the topmost lead on the list. Pinned, snoozed and
- * settled workers keep their own section.
+ * under that lead instead. A thread that launched workers of its own is a lead
+ * and stays in its section, so grouping is always one level deep. Pinned,
+ * snoozed and settled workers keep their own section.
  */
 export function groupSidebarWorkersUnderLeads<
   T extends Pick<SidebarThreadSummary, "id" | "lineage"> & { readonly environmentId: string },
@@ -632,28 +632,27 @@ export function groupSidebarWorkersUnderLeads<
   readonly working: T[];
   readonly workersByLeadKey: ReadonlyMap<string, readonly T[]>;
 } {
-  const listed = new Map<string, T>();
-  for (const thread of [...input.pinned, ...input.active, ...input.working]) {
-    listed.set(input.keyOf(thread.environmentId, thread.id), thread);
+  const listed = [...input.pinned, ...input.active, ...input.working];
+  const listedKeys = new Set(listed.map((thread) => input.keyOf(thread.environmentId, thread.id)));
+  const leadKeyOf = (thread: T) =>
+    thread.lineage.launchedByThreadId === undefined
+      ? null
+      : input.keyOf(thread.environmentId, thread.lineage.launchedByThreadId);
+  const leadKeys = new Set<string>();
+  for (const thread of listed) {
+    const leadKey = leadKeyOf(thread);
+    if (leadKey !== null && listedKeys.has(leadKey)) leadKeys.add(leadKey);
   }
-  const leadKeyOf = (thread: T): string | null => {
-    const visited = new Set([input.keyOf(thread.environmentId, thread.id)]);
-    let leadKey: string | null = null;
-    let current = thread;
-    while (current.lineage.launchedByThreadId !== undefined) {
-      const key = input.keyOf(current.environmentId, current.lineage.launchedByThreadId);
-      const lead = listed.get(key);
-      if (lead === undefined || visited.has(key)) break;
-      visited.add(key);
-      leadKey = key;
-      current = lead;
-    }
-    return leadKey;
-  };
   const workersByLeadKey = new Map<string, T[]>();
   const staysInSection = (thread: T) => {
     const leadKey = leadKeyOf(thread);
-    if (leadKey === null) return true;
+    if (
+      leadKey === null ||
+      !leadKeys.has(leadKey) ||
+      leadKeys.has(input.keyOf(thread.environmentId, thread.id))
+    ) {
+      return true;
+    }
     const workers = workersByLeadKey.get(leadKey);
     if (workers) workers.push(thread);
     else workersByLeadKey.set(leadKey, [thread]);
