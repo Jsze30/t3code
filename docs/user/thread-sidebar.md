@@ -128,6 +128,12 @@ device keeps its own choice.
 While this is on, the active list is ordered by when each thread last came back to you, so you
 cannot drag or move threads within it. Your saved order returns when you turn it off.
 
+## Lead and worker threads
+
+On web and desktop, threads that an agent starts with `t3_thread_launch` or `create_threads` show under the thread that started them instead of in the main list.
+Click the workers row under a lead to show or hide them.
+A worker that is pinned, snoozed, or settled stays in that section.
+
 ## Settle finished work
 
 Choose **Settle thread** from its menu to move finished work out of the active list

@@ -145,6 +145,7 @@ import {
 import {
   applySidebarThreadDrop,
   filterSidebarV2VisibleThreads,
+  groupSidebarWorkersUnderLeads,
   buildBulkTitleRegenerationContextMenuItem,
   buildBulkUnpinContextMenuItem,
   deleteSelectedThreadEntries,
@@ -191,6 +192,7 @@ import {
   pendingSidebarRouteReveal,
   type SidebarRouteReveal,
 } from "./sidebar/routeReveal";
+import { CollapsibleSectionHeader } from "./ui/collapsible-section-header";
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { Button } from "./ui/button";
 import {
@@ -283,6 +285,7 @@ const SETTLED_TAIL_PAGE_COUNT = 25;
 const SETTLED_SHELF_EXPANDED_KEY = "t3code:sidebar:settled-expanded";
 const SNOOZED_SHELF_EXPANDED_KEY = "t3code:sidebar:snoozed-expanded";
 const WORKING_SHELF_EXPANDED_KEY = "t3code:sidebar:working-expanded";
+const EXPANDED_LEADS_KEY = "t3code:sidebar:expanded-leads";
 
 const inboxReturns = createInboxReturnTracker();
 
@@ -407,6 +410,11 @@ function useSidebarThreads(input: {
     false,
     Schema.Boolean,
   );
+  const [expandedLeadKeys, setExpandedLeadKeys] = useLocalStorage(
+    EXPANDED_LEADS_KEY,
+    [],
+    Schema.Array(Schema.String),
+  );
   // The settled tail restarts whenever the project scope changes.
   const [settledTail, setSettledTail] = useState({
     scopeKey: projectScopeKey,
@@ -429,8 +437,27 @@ function useSidebarThreads(input: {
   const partitionNextWakeAt = partition.snoozedThreads[0]?.snoozedUntil ?? null;
   if (partitionNextWakeAt !== nextSnoozeWakeAt) setNextSnoozeWakeAt(partitionNextWakeAt);
 
-  const { pinnedThreads, activeThreads, workingThreads, snoozedThreads, settledThreads } =
-    partition;
+  const {
+    pinnedThreads,
+    activeThreads,
+    workingThreads,
+    snoozedThreads,
+    settledThreads,
+    workersByLeadKey,
+  } = partition;
+  // A folded lead still shows the worker that is open, like the folded shelves do.
+  const visibleWorkersByLeadKey = new Map(
+    [...workersByLeadKey].map(([leadKey, workers]) => [
+      leadKey,
+      expandedLeadKeys.includes(leadKey) ? workers : routeThreadOnly(workers, routeRowThreadKey),
+    ]),
+  );
+  const withVisibleWorkers = (list: readonly EnvironmentThreadShell[]) =>
+    list.flatMap((thread) => [
+      thread,
+      ...(visibleWorkersByLeadKey.get(threadShellKey(thread)) ?? []),
+    ]);
+  const allWorkers = [...workersByLeadKey.values()].flat();
   const visibleSettledThreads = (() => {
     if (settledThreads.length <= settledVisibleCount) return settledThreads;
     const visible = settledThreads.slice(0, settledVisibleCount);
@@ -452,9 +479,9 @@ function useSidebarThreads(input: {
     ? workingThreads
     : routeThreadOnly(workingThreads, routeRowThreadKey);
   const orderedThreads = [
-    ...pinnedThreads,
-    ...activeThreads,
-    ...visibleWorkingThreads,
+    ...withVisibleWorkers(pinnedThreads),
+    ...withVisibleWorkers(activeThreads),
+    ...withVisibleWorkers(visibleWorkingThreads),
     ...visibleSnoozedThreads,
     ...renderedSettledThreads,
   ];
@@ -477,6 +504,7 @@ function useSidebarThreads(input: {
       ...pinnedThreads,
       ...activeThreads,
       ...workingThreads,
+      ...allWorkers,
       ...snoozedThreads,
       ...settledThreads,
     ],
@@ -493,6 +521,12 @@ function useSidebarThreads(input: {
     toggleSnoozedShelf: () => setSnoozedShelfExpanded((value) => !value),
     workingShelfExpanded,
     toggleWorkingShelf: () => setWorkingShelfExpanded((value) => !value),
+    visibleWorkersByLeadKey,
+    expandedLeadKeys,
+    toggleLead: (leadKey: string) =>
+      setExpandedLeadKeys((keys) =>
+        keys.includes(leadKey) ? keys.filter((key) => key !== leadKey) : [...keys, leadKey],
+      ),
     renderedSettledThreads,
     visibleSnoozedThreads,
     visibleWorkingThreads,
@@ -575,18 +609,17 @@ function partitionSidebarThreads(input: SidebarThreadPartitionInput) {
   const sortedActive = workingShelfEnabled
     ? sortInboxThreadsByReturn(active, inboxReturns.returnedAt)
     : sortThreadsForSidebar(active);
-  return {
-    pinnedThreads:
-      optimisticDrop?.section !== "pinned" || optimisticDrop.order === null
-        ? sortedPinned
-        : orderItemsByPreferredIds({
-            items: sortedPinned,
-            preferredIds: optimisticDrop.order,
-            getId: (thread) => scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
-          }),
-    draggableThreadKeys: draggable,
-    activeReorderableThreadKeys: activeReorderable,
-    activeThreads:
+  const pinnedThreads =
+    optimisticDrop?.section !== "pinned" || optimisticDrop.order === null
+      ? sortedPinned
+      : orderItemsByPreferredIds({
+          items: sortedPinned,
+          preferredIds: optimisticDrop.order,
+          getId: (thread) => scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
+        });
+  const grouped = groupSidebarWorkersUnderLeads({
+    pinned: pinnedThreads,
+    active:
       optimisticDrop?.section !== "active" || optimisticDrop.order === null
         ? sortedActive
         : orderItemsByPreferredIds({
@@ -594,7 +627,16 @@ function partitionSidebarThreads(input: SidebarThreadPartitionInput) {
             preferredIds: optimisticDrop.order,
             getId: (thread) => scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
           }),
-    workingThreads: sortWorkingThreadsBySend(working),
+    working: sortWorkingThreadsBySend(working),
+    keyOf: (environmentId, threadId) => scopedThreadKey(scopeThreadRef(environmentId, threadId)),
+  });
+  return {
+    pinnedThreads,
+    draggableThreadKeys: draggable,
+    activeReorderableThreadKeys: activeReorderable,
+    activeThreads: grouped.active,
+    workingThreads: grouped.working,
+    workersByLeadKey: grouped.workersByLeadKey,
     snoozedThreads: snoozed.toSorted(
       (left, right) =>
         firstValidTimestampMs(left.snoozedUntil ?? null) -
@@ -1051,6 +1093,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     toggleSnoozedShelf,
     workingShelfExpanded,
     toggleWorkingShelf,
+    workersByLeadKey,
+    visibleWorkersByLeadKey,
+    expandedLeadKeys,
+    toggleLead,
     renderedSettledThreads,
     visibleSnoozedThreads,
     visibleWorkingThreads,
@@ -2941,12 +2987,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       const renderThreadRow = (
                         thread: EnvironmentThreadShell,
                         section: SidebarSection,
+                        worker = false,
                       ) => {
                         const threadKey = scopedThreadKey(
                           scopeThreadRef(thread.environmentId, thread.id),
                         );
                         const isCard =
-                          section === "active" || section === "pinned" || section === "working";
+                          !worker &&
+                          (section === "active" || section === "pinned" || section === "working");
                         const rowVariant = isCard ? "card" : "slim";
                         return (
                           <SortableThreadRow
@@ -2954,6 +3002,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             sortableId={threadKey}
                             contextDrag={isContextDrag}
                             sortableDisabled={
+                              worker ||
                               renamingThreadKey === threadKey ||
                               !draggableThreadKeys.has(threadKey) ||
                               optimisticDrop !== null
@@ -3062,6 +3111,30 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                       for (const item of sidebarListItems) {
                         if (item.kind === "thread") {
                           items.push(renderThreadRow(threadByKey.get(item.key)!, item.section));
+                          const workers = workersByLeadKey.get(item.key);
+                          if (workers !== undefined) {
+                            const expanded = expandedLeadKeys.includes(item.key);
+                            const workingCount = workers.filter(isSidebarThreadWorking).length;
+                            items.push(
+                              <li key={`${item.key}:workers`} className="list-none ps-4">
+                                <CollapsibleSectionHeader
+                                  expanded={expanded}
+                                  onClick={() => toggleLead(item.key)}
+                                >
+                                  {`${workers.length} ${workers.length === 1 ? "worker" : "workers"}${
+                                    !expanded && workingCount > 0
+                                      ? ` · ${workingCount} working`
+                                      : ""
+                                  }`}
+                                </CollapsibleSectionHeader>
+                                <ul>
+                                  {(visibleWorkersByLeadKey.get(item.key) ?? []).map((worker) =>
+                                    renderThreadRow(worker, "active", true),
+                                  )}
+                                </ul>
+                              </li>,
+                            );
+                          }
                           continue;
                         }
                         switch (item.marker) {
