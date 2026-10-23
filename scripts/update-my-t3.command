@@ -17,9 +17,10 @@ trap 'hdiutil detach -quiet "$mnt"' EXIT
 
 # Quit only after the build succeeds so running agents keep working until then.
 osascript -e "quit app \"${app%.app}\"" || true
-while pgrep -xq "${app%.app}"; do sleep 1; done
+while [[ $(osascript -e "application \"${app%.app}\" is running") == true ]]; do sleep 1; done
 
 rm -rf "/Applications/$app"
 ditto "$mnt/$app" "/Applications/$app"
-open "/Applications/$app"
+# Shells started inside T3 Code set this, which makes the app boot as plain Node and exit.
+env -u ELECTRON_RUN_AS_NODE open "/Applications/$app"
 echo "Updated to $(git log -1 --format='%h %s')"
