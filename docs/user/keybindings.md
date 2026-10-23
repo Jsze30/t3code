@@ -173,8 +173,8 @@ a shortcut.
 
 ## Commands with special behavior
 
-`thread.stop` interrupts the running turn in the focused thread. It has no default
-shortcut; assign one in **Settings → Keybindings**.
+`thread.stop` (`esc` by default) interrupts the running turn in the focused thread.
+While a menu, dialog, or composer suggestion list is open, `esc` closes it instead.
 
 `thread.regenerateTitle` generates a new title for the focused thread, like
 **Regenerate title** in the thread menu. It has no default shortcut.
