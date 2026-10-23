@@ -2,7 +2,7 @@
 # Double-click to pull the latest fork, rebuild the desktop app, and reinstall it.
 set -euo pipefail
 
-app="T3 Code (Beta).app"
+app="T3 Code (Jason).app"
 cd "${0:A:h}/.."
 
 git switch jason
