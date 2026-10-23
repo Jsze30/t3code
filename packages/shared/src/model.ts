@@ -29,11 +29,41 @@ export interface SelectableModelOption {
   aliases?: ReadonlyArray<string> | undefined;
 }
 
+const EFFORT_OPTION_IDS = new Set(["effort", "reasoningEffort", "reasoning"]);
+const FAST_SERVICE_TIER_IDS = new Set(["priority", "fast"]);
+
+// This build defaults every model to high effort and its fast mode when the model offers them.
+function preferHighFastDefault(descriptor: ProviderOptionDescriptor): ProviderOptionDescriptor {
+  if (descriptor.type === "boolean") {
+    return descriptor.id === "fastMode" ? { ...descriptor, currentValue: true } : descriptor;
+  }
+  const preferredId = EFFORT_OPTION_IDS.has(descriptor.id)
+    ? "high"
+    : descriptor.id === "serviceTier"
+      ? descriptor.options.find((option) => FAST_SERVICE_TIER_IDS.has(option.id))?.id
+      : undefined;
+  if (
+    preferredId === undefined ||
+    !descriptor.options.some((option) => option.id === preferredId)
+  ) {
+    return descriptor;
+  }
+  return {
+    ...descriptor,
+    options: descriptor.options.map(({ isDefault: _isDefault, ...option }) =>
+      option.id === preferredId ? { ...option, isDefault: true } : option,
+    ),
+    currentValue: preferredId,
+  };
+}
+
 export function createModelCapabilities(input: {
   optionDescriptors: ReadonlyArray<ProviderOptionDescriptor>;
 }): ModelCapabilities {
   return {
-    optionDescriptors: input.optionDescriptors.map(cloneDescriptor),
+    optionDescriptors: input.optionDescriptors.map((descriptor) =>
+      preferHighFastDefault(cloneDescriptor(descriptor)),
+    ),
   };
 }
 
