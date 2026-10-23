@@ -33,7 +33,6 @@ import {
   AlarmClockOffIcon,
   ArrowRightLeftIcon,
   CheckIcon,
-  ChevronRightIcon,
   CircleAlertIcon,
   CircleCheckIcon,
   CircleDashedIcon,
@@ -586,8 +585,6 @@ type SidebarThreadRowProps = {
   onUnpin: (threadRef: ScopedThreadRef) => void;
   onAcknowledgeWoke: (threadRef: ScopedThreadRef, visitedAt: string) => void;
   onFileDropThreads?: ((threadRef: ScopedThreadRef, files: File[]) => void) | undefined;
-  /** Set on a lead: how many workers it launched and whether they are shown under it. */
-  workers?: { readonly count: number; readonly expanded: boolean; readonly onToggle: () => void };
 };
 
 // Mounted only while renaming, so each rename starts uncommitted.
@@ -1558,26 +1555,6 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
               {props.sweepAction !== null ? dragDestination : null}
             </div>
             <div className="mt-1 flex min-w-0 items-center gap-1.5">
-              {props.workers ? (
-                <button
-                  type="button"
-                  aria-label={`${props.workers.expanded ? "Hide" : "Show"} ${props.workers.count} ${props.workers.count === 1 ? "worker" : "workers"}`}
-                  aria-expanded={props.workers.expanded}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                    props.workers?.onToggle();
-                  }}
-                  onPointerDown={(event) => event.stopPropagation()}
-                  className="-ml-1 inline-flex h-5 shrink-0 cursor-pointer items-center gap-0.5 rounded-sm px-0.5 text-xs text-secondary-label tabular-nums hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring"
-                >
-                  <ChevronRightIcon
-                    aria-hidden
-                    className={cn("size-3.5", props.workers.expanded && "rotate-90")}
-                  />
-                  {props.workers.count}
-                </button>
-              ) : null}
               {title}
               {isRegeneratingTitle ? (
                 <span role="status" className="sr-only">

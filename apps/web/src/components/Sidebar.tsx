@@ -230,6 +230,14 @@ import {
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { copyThreadReference } from "../lib/copyThreadReference";
 import { threadChipCopyTarget } from "@t3tools/client-runtime/thread-reference";
+import {
+  AlertDialog,
+  AlertDialogClose,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogPopup,
+  AlertDialogTitle,
+} from "./ui/alert-dialog";
 import { Button } from "./ui/button";
 import {
   Combobox,
@@ -606,7 +614,6 @@ function useSidebarThreads(input: {
       setProjectExpanded(keys, !resolveProjectExpanded(projectExpandedById, keys));
     },
     visibleWorkersByLeadKey,
-    expandedLeadKeys,
     toggleLead: (leadKey: string) =>
       setExpandedLeadKeys((keys) =>
         keys.includes(leadKey) ? keys.filter((key) => key !== leadKey) : [...keys, leadKey],
@@ -1309,7 +1316,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     toggleProjectFolder,
     workersByLeadKey,
     visibleWorkersByLeadKey,
-    expandedLeadKeys,
     toggleLead,
     renderedSettledThreads,
     visibleSnoozedThreads,
@@ -1413,7 +1419,14 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     setActiveSearchResultIndex((activeSearchResultIndex + step + count) % count);
   };
 
+  const [leadSettlePrompt, setLeadSettlePrompt] = useState<{
+    readonly open: boolean;
+    readonly threadRef: ScopedThreadRef;
+    readonly workers: readonly EnvironmentThreadShell[];
+  } | null>(null);
   const orderedThreadKeysRef = useRef(orderedThreadKeys);
+  const workersByLeadKeyRef = useRef(workersByLeadKey);
+  const toggleLeadRef = useRef(toggleLead);
   // Read changing maps/sets through refs so streamed events preserve row callbacks.
   const threadByKeyRef = useRef(threadByKey);
   const settledThreadKeysRef = useRef(settledThreadKeys);
@@ -1566,6 +1579,11 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     if (isTrailingDoubleClick(event.detail)) {
       return;
     }
+    // Clicking the open lead again shows or hides its workers.
+    if (readRouteThreadKey(router) === threadKey && workersByLeadKeyRef.current.has(threadKey)) {
+      toggleLeadRef.current(threadKey);
+      return;
+    }
     navigateToThread(threadRef);
   };
 
@@ -1595,6 +1613,32 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   };
 
   const attemptSettle = (
+    threadRef: ScopedThreadRef,
+    opts: { coSettlingKeys?: ReadonlySet<string> } = {},
+  ) => {
+    const workers =
+      opts.coSettlingKeys === undefined
+        ? workersByLeadKeyRef.current.get(scopedThreadKey(threadRef))
+        : undefined;
+    if (workers !== undefined && workers.length > 0) {
+      setLeadSettlePrompt({ open: true, threadRef, workers });
+      return;
+    }
+    settleNow(threadRef, opts);
+  };
+  const settleLead = (includeWorkers: boolean) => {
+    if (leadSettlePrompt === null) return;
+    setLeadSettlePrompt({ ...leadSettlePrompt, open: false });
+    const refs = [
+      leadSettlePrompt.threadRef,
+      ...(includeWorkers
+        ? leadSettlePrompt.workers.map((worker) => scopeThreadRef(worker.environmentId, worker.id))
+        : []),
+    ];
+    const coSettlingKeys = new Set(refs.map(scopedThreadKey));
+    for (const ref of refs) settleNow(ref, { coSettlingKeys });
+  };
+  const settleNow = (
     threadRef: ScopedThreadRef,
     opts: { coSettlingKeys?: ReadonlySet<string> } = {},
   ) => {
@@ -1770,6 +1814,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   useLayoutEffect(() => {
     projectGroupsRef.current = projectGroups;
     orderedThreadKeysRef.current = orderedThreadKeys;
+    workersByLeadKeyRef.current = workersByLeadKey;
+    toggleLeadRef.current = toggleLead;
     threadByKeyRef.current = threadByKey;
     settledThreadKeysRef.current = settledThreadKeys;
     snoozedThreadKeysRef.current = snoozedThreadKeys;
@@ -3245,9 +3291,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         const threadKey = scopedThreadKey(
                           scopeThreadRef(thread.environmentId, thread.id),
                         );
-                        const workerCount = worker
-                          ? 0
-                          : (workersByLeadKey.get(threadKey)?.length ?? 0);
                         const isCard =
                           !worker &&
                           (section === "active" || section === "pinned" || section === "working");
@@ -3358,15 +3401,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             onUnpin={attemptUnpin}
                             onAcknowledgeWoke={acknowledgeWoke}
                             onFileDropThreads={handleThreadFileDrop}
-                            {...(workerCount === 0
-                              ? {}
-                              : {
-                                  workers: {
-                                    count: workerCount,
-                                    expanded: expandedLeadKeys.includes(threadKey),
-                                    onToggle: () => toggleLead(threadKey),
-                                  },
-                                })}
                           />
                         );
                       };
@@ -3387,6 +3421,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                         if (visibleWorkers.length === 0) return;
                         items.push(
                           <li key={`${leadKey}:workers`} className="list-none ps-4">
+                            <div className="flex h-6 items-center gap-2 px-2 text-xs text-sidebar-muted-foreground/60">
+                              <span className="shrink-0 tabular-nums">
+                                {`${visibleWorkers.length} ${visibleWorkers.length === 1 ? "worker" : "workers"}`}
+                              </span>
+                              <span aria-hidden className="h-px flex-1 bg-sidebar-border/60" />
+                            </div>
                             <ul>
                               {visibleWorkers.map((worker) =>
                                 renderThreadRow(worker, "active", undefined, true),
@@ -3607,6 +3647,32 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         </SidebarGroup>
       </SidebarContent>
       <SidebarChromeFooter />
+      <AlertDialog
+        open={leadSettlePrompt?.open === true}
+        onOpenChange={(open) => {
+          if (!open && leadSettlePrompt !== null) {
+            setLeadSettlePrompt({ ...leadSettlePrompt, open: false });
+          }
+        }}
+        onOpenChangeComplete={(open) => {
+          if (!open) setLeadSettlePrompt(null);
+        }}
+      >
+        <AlertDialogPopup>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {`Settle its ${leadSettlePrompt?.workers.length ?? 0} ${leadSettlePrompt?.workers.length === 1 ? "worker" : "workers"} too?`}
+            </AlertDialogTitle>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
+            <Button variant="outline" onClick={() => settleLead(false)}>
+              Just the lead
+            </Button>
+            <Button onClick={() => settleLead(true)}>Settle all</Button>
+          </AlertDialogFooter>
+        </AlertDialogPopup>
+      </AlertDialog>
     </>
   );
 }
