@@ -2932,6 +2932,7 @@ export const layerWsRpc = (
           ),
         [WS_METHODS.terminalWrite]: (input) => terminalManager.write(input),
         [WS_METHODS.terminalRunCommand]: (input) => terminalManager.runCommand(input),
+        [WS_METHODS.terminalCancelCommand]: (input) => terminalManager.cancelCommand(input),
         [WS_METHODS.terminalResize]: (input) => terminalManager.resize(input),
         [WS_METHODS.terminalClear]: (input) => terminalManager.clear(input),
         [WS_METHODS.terminalRestart]: (input) => terminalManager.restart(input),
