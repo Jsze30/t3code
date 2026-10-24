@@ -8,7 +8,7 @@ for file in settings.json client-settings.json keybindings.json; do
   [[ -f "$userdata/$file" ]] && cp "$userdata/$file" my-t3-settings/
 done
 # Match the commit hook's formatting, or every save would look like a change.
-vp fmt my-t3-settings >/dev/null
+vp fmt my-t3-settings >/dev/null 2>&1
 
 git add my-t3-settings
 if git diff --cached --quiet -- my-t3-settings; then
