@@ -6,6 +6,8 @@
 
 <h1 align="center">T3 Code</h1>
 
+> This is Jason's fork. See [FORK.md](./FORK.md) to install and update it.
+
 <p align="center">The open-source control plane for coding agents.</p>
 
 <p align="center">
