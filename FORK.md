@@ -40,8 +40,15 @@ It pulls the latest `jason` branch, rebuilds, quits the running app, and swaps i
 
 When Jason says "update" to an agent running inside T3 Code:
 
-1. Run `git fetch origin` and `git log --oneline HEAD..origin/jason`.
+1. Pull in the latest official changes first, since the daily sync may not have run yet:
+
+   ```sh
+   gh workflow run sync-upstream.yml -R Jsze30/t3code --ref jason
+   ```
+
+   Wait for that run to succeed (`gh run watch`), then `git fetch origin` and `git log --oneline HEAD..origin/jason`.
    If there is nothing new and the installed app already has the latest local commits, say it is up to date and stop.
+
 2. Check that no other T3 threads are mid-task, since the update quits the app.
 3. Run the script in Terminal.app, not in the agent's own shell, or it dies when the app quits:
 
