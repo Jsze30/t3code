@@ -1900,7 +1900,7 @@ export default function ChatView(props: ChatViewProps) {
     lastInvokedScriptByProjectId,
     runProjectScriptStable,
     runShellCommandStable,
-    runShellCommandForAgentStable,
+    runShellCommandsForAgentStable,
     splitPanelTerminalStable,
     splitPanelTerminalVerticalStable,
     toggleTerminalVisibilityStable,
@@ -2983,7 +2983,7 @@ export default function ChatView(props: ChatViewProps) {
     sideChatDisabledReason,
     handleNewThreadInActiveProject,
     persistThreadSettingsForNextTurn,
-    runShellCommandForAgent: runShellCommandForAgentStable,
+    runShellCommandsForAgent: runShellCommandsForAgentStable,
   });
   const onImplementPlanInNewThreadStable = useStableCallback(onImplementPlanInNewThread);
 
