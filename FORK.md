@@ -14,10 +14,24 @@ Work happens on the `jason` branch, not `main`.
    git clone -b jason https://github.com/Jsze30/t3code.git ~/Documents/t3code
    ```
 
-4. Build and install the app: `~/Documents/t3code/scripts/update-my-t3.command`
+4. To bring settings over from another Mac, see [Move settings](#move-settings) before the next step.
+5. Build and install the app: `~/Documents/t3code/scripts/update-my-t3.command`
 
 The script builds the desktop app, puts "T3 Code (Jason)" in /Applications, and opens it.
 It only works on macOS.
+
+## Move settings
+
+This copies settings, appearance, fonts, keybindings, themes, open tabs, panel layout and sidebar state.
+It does not copy threads, projects, logs, or secrets.
+
+1. On the old Mac, quit T3 Code (Jason) and run `scripts/export-my-t3-settings.command`.
+   It saves `T3 Settings.zip` to the Desktop.
+2. Move the zip to the new Mac's Desktop, for example with AirDrop.
+3. On the new Mac, with T3 Code (Jason) quit, run `scripts/import-my-t3-settings.command`.
+   Files it replaces are kept in `~/.t3-jason/settings-backup-<time>`.
+
+Provider logins (Claude, Codex, GitHub) live outside T3 Code, so sign in to those CLIs on the new Mac too.
 
 ## Stop Keychain password prompts
 
