@@ -61,4 +61,7 @@ When Jason says "update" to an agent running inside T3 Code:
 `.github/workflows/sync-upstream.yml` rebases `jason` onto `upstream/main` daily and pushes it, so new official changes arrive as new commits on `origin/jason`.
 It needs the `SYNC_TOKEN` repository secret.
 If a rebase conflicts, the workflow fails and the conflict must be resolved by hand.
+When resolving one, keep Jason's change working on top of the new official code: take upstream's update, then re-apply his behavior to it.
+Never drop one of his changes to make a conflict go away.
+If his change no longer makes sense on the new code, stop and ask him.
 To keep conflicts rare, put fork-only notes in new files like this one instead of editing upstream files.
