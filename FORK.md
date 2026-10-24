@@ -11,10 +11,10 @@ Work happens on the `jason` branch, not `main`.
 3. Clone the fork on the `jason` branch:
 
    ```sh
-   git clone -b jason https://github.com/Jsze30/t3code.git ~/Documents/t3code
+   git clone -b jason https://github.com/Jsze30/t3code.git ~/Documents/Coding/t3code
    ```
 
-4. Build and install the app: `~/Documents/t3code/scripts/update-my-t3.command`
+4. Build and install the app: `~/Documents/Coding/t3code/scripts/update-my-t3.command`
 
 The script builds the desktop app, puts "T3 Code (Jason)" in /Applications with the saved [settings](#settings), and opens it.
 It only works on macOS.
@@ -53,7 +53,7 @@ When Jason says "update" to an agent running inside T3 Code:
 3. Run the script in Terminal.app, not in the agent's own shell, or it dies when the app quits:
 
    ```sh
-   osascript -e 'tell application "Terminal" to do script "env -u ELECTRON_RUN_AS_NODE ~/Documents/t3code/scripts/update-my-t3.command"'
+   osascript -e 'tell application "Terminal" to do script "env -u ELECTRON_RUN_AS_NODE ~/Documents/Coding/t3code/scripts/update-my-t3.command"'
    ```
 
 ## Staying in sync with upstream
