@@ -81,6 +81,7 @@ export function composerCommandKeyHandler(input: {
   readonly setComposerTrigger: (trigger: ComposerTrigger | null) => void;
   readonly setComposerHighlightedItemId: Dispatch<SetStateAction<string | null>>;
   readonly dismissComposerTrigger: (trigger: ComposerTrigger | null) => void;
+  readonly convertShellCommandToChip: () => boolean;
   readonly nudgeComposerMenuHighlight: (key: "ArrowDown" | "ArrowUp") => void;
   readonly onSelectComposerItem: (item: ComposerCommandItem) => void;
   readonly resolveActiveComposerTrigger: () => { trigger: ComposerTrigger | null };
@@ -265,6 +266,9 @@ export function composerCommandKeyHandler(input: {
         onSelectComposerItem(selectedItem);
         return true;
       }
+    }
+    if (key === "Tab" && !event.shiftKey && !menuIsActive && input.convertShellCommandToChip()) {
+      return true;
     }
     const acceptedSuggestion = promptSuggestionToAccept(promptSuggestion, promptRef.current);
     if (

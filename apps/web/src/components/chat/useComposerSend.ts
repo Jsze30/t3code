@@ -19,7 +19,7 @@ import {
   withMessageContext,
   makeThreadErrorSetter,
 } from "../ChatView.logic";
-import { parseComposerShellCommand, supportsComposerShellCommand } from "../composerShellCommand";
+import { isShellCommandChip } from "../composerShellCommand";
 import { isUsageLimitsCommand } from "@t3tools/shared/usageLimits";
 import {
   AuthOrchestrationOperateScope,
@@ -284,8 +284,11 @@ interface ComposerSendInput {
   /** Refuses `/side` with this reason and keeps the draft. */
   readonly sideChatDisabledReason: string | null;
   readonly handleNewThreadInActiveProject: () => void;
-  /** Runs a composer `!` command; false when it cannot run here. */
-  readonly runShellCommandForAgent: (command: string) => boolean;
+  /** Runs the draft's `!` command chips, then sends it; false when they cannot run here. */
+  readonly runShellCommandsForAgent: (draft: {
+    readonly prompt: string;
+    readonly terminalContexts: ReadonlyArray<TerminalContextDraft>;
+  }) => boolean;
   readonly persistThreadSettingsForNextTurn: (input: {
     threadId: ThreadId;
     createdAt: string;
@@ -378,7 +381,7 @@ export function useComposerSend(input: ComposerSendInput) {
     handleNewThreadInActiveProject,
     persistThreadSettingsForNextTurn,
     linkCheckoutPullRequest,
-    runShellCommandForAgent,
+    runShellCommandsForAgent,
   } = input;
   const linkedEnvironments = useLinkedEnvironments(environmentId);
   const handleNewThread = useNewThreadHandler();
@@ -453,19 +456,45 @@ export function useComposerSend(input: ComposerSendInput) {
       return;
     }
 
-    const shellCommand =
-      directAnnotation || detachedOverride ? null : parseComposerShellCommand(promptRef.current);
-    const selectedProvider = composerRef.current?.getSendContext()?.selectedProvider;
+    // After leaving the thread, dictation must not touch the composer on screen.
     if (
-      shellCommand !== null &&
-      isServerThread &&
-      selectedProvider !== undefined &&
-      supportsComposerShellCommand(selectedProvider) &&
-      runShellCommandForAgent(shellCommand.command)
+      !directAnnotation &&
+      !detachedOverride &&
+      composerRef.current?.convertShellCommandToChip() === true
     ) {
-      promptRef.current = shellCommand.keptPrompt;
-      setComposerDraftPrompt(composerDraftTarget, shellCommand.keptPrompt);
-      composerRef.current?.resetCursorState();
+      return;
+    }
+    const draftTerminalContexts = detachedOverride
+      ? (detachedOverride.sendContext?.terminalContexts ?? [])
+      : composerTerminalContextsRef.current;
+    if (!directAnnotation && isServerThread && draftTerminalContexts.some(isShellCommandChip)) {
+      // Commands run in the thread on screen, so the chip waits in the draft it was left in.
+      if (detachedOverride) return;
+      const draft = useComposerDraftStore.getState().getComposerDraft(composerDraftTarget);
+      if (
+        countPreparingComposerImages(composerTargetKey(composerDraftTarget)) > 0 ||
+        (draft && composerDraftHasUserContent({ ...draft, prompt: "", terminalContexts: [] }))
+      ) {
+        toastManager.add(
+          stackedThreadToast({
+            type: "warning",
+            title: "Send ! commands on their own",
+            description: "Remove images, files, and other attachments from this message first.",
+          }),
+        );
+        return;
+      }
+      if (
+        runShellCommandsForAgent({
+          prompt: promptRef.current,
+          terminalContexts: draftTerminalContexts,
+        })
+      ) {
+        promptRef.current = "";
+        setComposerDraftPrompt(composerDraftTarget, "");
+        useComposerDraftStore.getState().clearTerminalContexts(composerDraftTarget);
+        composerRef.current?.resetCursorState();
+      }
       return;
     }
 
