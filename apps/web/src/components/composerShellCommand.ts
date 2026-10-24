@@ -3,9 +3,10 @@ import { collectComposerContextReferences } from "@t3tools/shared/composerContex
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { SHELL_COMMAND_TERMINAL_ID, type TerminalContextSelection } from "../lib/terminalContext";
 
-// Like the Claude Code CLI, a prompt that starts with `!` runs in the thread's folder. When it
-// finishes, its output is sent to the agent as a terminal excerpt and the agent responds.
+// Like the Claude Code CLI, `!command` runs in the thread's folder. Enter or Tab first turns it
+// into a chip; sending runs it, then sends the message with the output and the agent responds.
 const SHELL_COMMAND_DRIVERS: ReadonlySet<string> = new Set(["claudeAgent", "codex"]);
 
 export function supportsComposerShellCommand(driverKind: ProviderDriverKind): boolean {
@@ -29,6 +30,21 @@ export function parseComposerShellCommand(
   const match = /^\s*!([\s\S]*)$/.exec(prompt.slice(commandStart));
   const command = match?.[1]?.trim();
   return command ? { command, keptPrompt: prompt.slice(0, commandStart) } : null;
+}
+
+/** A chip that holds a command waiting to run when the message is sent. */
+export function shellCommandChip(command: string): TerminalContextSelection {
+  return {
+    terminalId: SHELL_COMMAND_TERMINAL_ID,
+    terminalLabel: `!${command.length > 40 ? `${command.slice(0, 40)}…` : command}`,
+    lineStart: 1,
+    lineEnd: 1,
+    text: command,
+  };
+}
+
+export function isShellCommandChip(context: { readonly terminalId: string }): boolean {
+  return context.terminalId === SHELL_COMMAND_TERMINAL_ID;
 }
 
 export function formatComposerShellCommandOutput(input: {
