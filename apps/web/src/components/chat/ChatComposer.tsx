@@ -1,7 +1,11 @@
 import { copySnapshot } from "./copySnapshot";
 import { VoiceInputSetup } from "./VoiceInputSetup";
 import { useComposerTypingGuard } from "./useComposerTypingGuard";
-import { supportsComposerShellCommand } from "../composerShellCommand";
+import {
+  parseComposerShellCommand,
+  shellCommandChip,
+  supportsComposerShellCommand,
+} from "../composerShellCommand";
 import { insertAttachmentReferencesForDraft } from "./composerAttachmentReferences";
 import type { ComposerAttachmentInsertion } from "../composerAttachmentInsertion";
 import { DESKTOP_PASTE_AS_TEXT_EVENT } from "../../lib/desktopPasteAsText";
@@ -357,6 +361,8 @@ export interface ChatComposerHandle {
     shownPendingApprovalIds: ReadonlyArray<RuntimeRequestId>;
   };
   validateProviderInput: (providerInput: string) => boolean;
+  /** Turns a typed `!command` into a chip; false when the prompt is not one. */
+  convertShellCommandToChip: () => boolean;
   setMultipleModelSelections: (selections: ReadonlyArray<ModelSelection>) => void;
 }
 
@@ -2386,9 +2392,40 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
     !showProviderUnavailable
       ? promptSuggestion
       : null;
+  // Turns a typed `!command` into a chip; nothing runs until the message is sent.
+  const convertShellCommandToChip = (): boolean => {
+    if (!activeThread || isChoiceOnlyPendingQuestion || isLiteralPendingAnswer) return false;
+    if (!supportsComposerShellCommand(selectedProvider)) return false;
+    const parsed = parseComposerShellCommand(promptRef.current);
+    if (parsed === null) return false;
+    const context = {
+      id: randomUUID(),
+      threadId: activeThread.id,
+      createdAt: new Date().toISOString(),
+      ...shellCommandChip(parsed.command),
+    };
+    const nextPrompt = `${parsed.keptPrompt}${terminalContextReference(context)} `;
+    const inserted = insertComposerDraftTerminalContext(
+      composerDraftTarget,
+      nextPrompt,
+      context,
+      composerTerminalContexts.length,
+    );
+    if (!inserted) return false;
+    const nextCursor = collapseExpandedComposerCursor(nextPrompt, nextPrompt.length);
+    promptRef.current = nextPrompt;
+    setComposerCursor(nextCursor);
+    setComposerTrigger(null);
+    window.requestAnimationFrame(() => {
+      composerEditorRef.current?.focusAt(nextCursor);
+    });
+    return true;
+  };
+  const convertShellCommandToChipStable = useStableCallback(convertShellCommandToChip);
 
   const onComposerCommandKey = (key: string, event: KeyboardEvent, isTaskItem?: boolean) =>
     composerCommandKeyHandler({
+      convertShellCommandToChip: convertShellCommandToChipStable,
       keybindings,
       getShortcutContext,
       sendShortcut: settings.sendShortcut,
@@ -3312,6 +3349,7 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
         selectedProviderModels,
       }),
       setMultipleModelSelections,
+      convertShellCommandToChip: convertShellCommandToChipStable,
       validateProviderInput: (providerInput: string) => {
         const validationMessage = getComposerSubmissionValidationMessage({
           prompt: promptRef.current,
