@@ -2266,16 +2266,20 @@ export const ChatComposer = memo(function ChatComposer(props: ChatComposerProps)
       createdAt: new Date().toISOString(),
       ...shellCommandChip(parsed.command),
     };
-    const nextPrompt = `${parsed.keptPrompt}${terminalContextReference(context)} `;
+    const insertion = insertInlineContextReference(
+      parsed.keptPrompt,
+      parsed.keptPrompt.length,
+      terminalContextReference(context),
+    );
     const inserted = insertComposerDraftTerminalContext(
       composerDraftTarget,
-      nextPrompt,
+      insertion.prompt,
       context,
       composerTerminalContexts.length,
     );
     if (!inserted) return false;
-    const nextCursor = collapseExpandedComposerCursor(nextPrompt, nextPrompt.length);
-    promptRef.current = nextPrompt;
+    const nextCursor = collapseExpandedComposerCursor(insertion.prompt, insertion.cursor);
+    promptRef.current = insertion.prompt;
     setComposerCursor(nextCursor);
     setComposerTrigger(null);
     window.requestAnimationFrame(() => {
