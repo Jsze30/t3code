@@ -127,10 +127,11 @@ describe("buildGrokModelCapabilities", () => {
         id: "reasoningEffort",
         label: "Reasoning",
         type: "select",
-        currentValue: "medium",
+        // This build defaults every model to high effort when it offers one.
+        currentValue: "high",
         options: [
-          { id: "xhigh", label: "Extra High Effort", isDefault: true },
-          { id: "high", label: "High Effort" },
+          { id: "xhigh", label: "Extra High Effort" },
+          { id: "high", label: "High Effort", isDefault: true },
           { id: "medium", label: "Medium Effort" },
         ],
       },
