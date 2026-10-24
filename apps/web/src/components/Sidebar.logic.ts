@@ -894,11 +894,9 @@ export function resolveAdjacentThreadId<T>(input: {
     return null;
   }
 
-  if (direction === "previous") {
-    return currentIndex > 0 ? (threadIds[currentIndex - 1] ?? null) : null;
-  }
-
-  return currentIndex < threadIds.length - 1 ? (threadIds[currentIndex + 1] ?? null) : null;
+  // Wraps around, like switching browser tabs.
+  const step = direction === "previous" ? -1 : 1;
+  return threadIds.at((currentIndex + step) % threadIds.length) ?? null;
 }
 
 export type SidebarThreadStatus =
