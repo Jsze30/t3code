@@ -2066,6 +2066,7 @@ export default function ChatView(props: ChatViewProps) {
     lastInvokedScriptByProjectId,
     runProjectScriptStable,
     runShellCommandStable,
+    runShellCommandIntoDraftStable,
     splitPanelTerminalStable,
     splitPanelTerminalVerticalStable,
     toggleTerminalVisibilityStable,
@@ -3227,6 +3228,7 @@ export default function ChatView(props: ChatViewProps) {
     handleNewThreadInActiveProject,
     persistThreadSettingsForNextTurn,
     linkCheckoutPullRequest,
+    runShellCommandIntoDraft: runShellCommandIntoDraftStable,
   });
 
   const onWorktreeSetupWorkLocally = () => {
