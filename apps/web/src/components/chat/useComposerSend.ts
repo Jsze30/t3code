@@ -14,6 +14,7 @@ import {
   withMessageContext,
   makeThreadErrorSetter,
 } from "../ChatView.logic";
+import { parseComposerShellCommand, supportsComposerShellCommand } from "../composerShellCommand";
 import { isUsageLimitsCommand } from "@t3tools/shared/usageLimits";
 import {
   AuthOrchestrationOperateScope,
@@ -237,6 +238,8 @@ interface ComposerSendInput {
   readonly acknowledgeActiveThreadWoke: () => void;
   readonly handleInteractionModeChange: (mode: ProviderInteractionMode) => void;
   readonly handleNewThreadInActiveProject: () => void;
+  /** Runs a composer `!` command; false when it cannot run here. */
+  readonly runShellCommandIntoDraft: (command: string) => boolean;
   readonly persistThreadSettingsForNextTurn: (input: {
     threadId: ThreadId;
     createdAt: string;
@@ -323,6 +326,7 @@ export function useComposerSend(input: ComposerSendInput) {
     handleInteractionModeChange,
     handleNewThreadInActiveProject,
     persistThreadSettingsForNextTurn,
+    runShellCommandIntoDraft,
   } = input;
   const linkedEnvironments = useLinkedEnvironments(environmentId);
   const handleNewThread = useNewThreadHandler();
@@ -416,6 +420,21 @@ export function useComposerSend(input: ComposerSendInput) {
         setComposerDraftPrompt(composerDraftTarget, "");
         composerRef.current?.resetCursorState();
       }
+      return;
+    }
+
+    const shellCommand = directAnnotation ? null : parseComposerShellCommand(promptRef.current);
+    const selectedProvider = composerRef.current?.getSendContext()?.selectedProvider;
+    if (
+      shellCommand !== null &&
+      isServerThread &&
+      selectedProvider !== undefined &&
+      supportsComposerShellCommand(selectedProvider) &&
+      runShellCommandIntoDraft(shellCommand.command)
+    ) {
+      promptRef.current = shellCommand.keptPrompt;
+      setComposerDraftPrompt(composerDraftTarget, shellCommand.keptPrompt);
+      composerRef.current?.resetCursorState();
       return;
     }
 

@@ -40,6 +40,7 @@ import {
   focusActivePanelTerminal,
   focusTerminal,
 } from "../../lib/terminalFocus";
+import { formatComposerShellCommandOutput } from "../composerShellCommand";
 import { useTerminalUiStateStore } from "../../terminalUiStateStore";
 import {
   LAST_INVOKED_SCRIPT_BY_PROJECT_KEY,
@@ -134,6 +135,28 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
     composerRef.current?.addTerminalContext(selection);
   };
   const addTerminalContextToDraftStable = useStableCallback(addTerminalContextToDraft);
+  /** Runs a composer `!` command; its output joins the draft for the agent to read. */
+  const runShellCommandIntoDraft = (command: string): boolean => {
+    const pending = terminalActions.runCommand(command);
+    if (pending === null) return false;
+    const toastId = toastManager.add(
+      stackedThreadToast({ type: "loading", title: `Running !${command}` }),
+    );
+    void pending.then((result) => {
+      toastManager.close(toastId);
+      if (result._tag !== "Success") return;
+      const text = formatComposerShellCommandOutput({ command, ...result.value });
+      addTerminalContextToDraft({
+        terminalId: "shell-command",
+        terminalLabel: `!${command.length > 40 ? `${command.slice(0, 40)}…` : command}`,
+        lineStart: 1,
+        lineEnd: text.split("\n").length,
+        text,
+      });
+    });
+    return true;
+  };
+  const runShellCommandIntoDraftStable = useStableCallback(runShellCommandIntoDraft);
   const setTerminalOpen = (open: boolean) => {
     if (!activeThreadRef) return;
     storeSetTerminalOpen(activeThreadRef, open);
@@ -450,6 +473,7 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
     requestCloseTerminalStable,
     runProjectScriptStable,
     runShellCommandStable,
+    runShellCommandIntoDraftStable,
     setTerminalOpenStable,
     splitPanelTerminalStable,
     splitPanelTerminalVerticalStable,

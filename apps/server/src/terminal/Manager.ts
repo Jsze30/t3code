@@ -31,9 +31,12 @@ import {
   type TerminalSessionStatus,
   type TerminalSummary,
   type TerminalWriteInput,
+  type TerminalRunCommandInput,
+  type TerminalRunCommandResult,
   ClaudeSettings,
   CodexSettings,
   ProviderInstanceId,
+  TerminalRunCommandError,
 } from "@t3tools/contracts";
 import { makeKeyedCoalescingWorker } from "@t3tools/shared/KeyedCoalescingWorker";
 import * as KeyedLock from "@t3tools/shared/KeyedLock";
@@ -208,6 +211,11 @@ export class TerminalManager extends Context.Service<
     ) => Effect.Effect<() => void, TerminalError>;
 
     readonly write: (input: TerminalWriteInput) => Effect.Effect<void, TerminalError>;
+
+    /** Runs one command to completion in the user's shell, without a terminal session. */
+    readonly runCommand: (
+      input: TerminalRunCommandInput,
+    ) => Effect.Effect<TerminalRunCommandResult, TerminalRunCommandError>;
 
     readonly resize: (
       input: TerminalResizeInput,
@@ -3344,6 +3352,40 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
     );
   };
 
+  const runCommand: TerminalManager["Service"]["runCommand"] = Effect.fn("terminal.runCommand")(
+    function* (input) {
+      const [shell] = resolveShellCandidates(shellResolver, platform, baseEnv);
+      const env = createTerminalSpawnEnv(baseEnv, null, platform, yield* HostProcess.HomeDirectory);
+      const result = yield* processRunner
+        .run({
+          command: shell?.shell ?? "sh",
+          args: [
+            ...(shell?.args ?? []),
+            ...(platform === "win32" ? ["-Command"] : ["-lc"]),
+            input.command,
+          ],
+          cwd: input.cwd,
+          env,
+          // No stdin, so a command that waits for input ends instead of hanging.
+          stdin: "",
+          timeout: "2 minutes",
+          timeoutBehavior: "timedOutResult",
+          maxOutputBytes: 64 * 1024,
+          outputMode: "truncate",
+        })
+        .pipe(
+          Effect.mapError(
+            (cause) => new TerminalRunCommandError({ threadId: input.threadId, cause }),
+          ),
+        );
+      return {
+        output: [result.stdout, result.stderr].filter((text) => text.length > 0).join("\n"),
+        exitCode: result.code === null ? null : Number(result.code),
+        timedOut: result.timedOut,
+      };
+    },
+  );
+
   const write: TerminalManager["Service"]["write"] = Effect.fn("terminal.write")(function* (input) {
     const terminalId = input.terminalId;
     const session = yield* requireSession(input.threadId, terminalId);
@@ -3493,6 +3535,7 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
     observeStream,
     resyncStream,
     write,
+    runCommand,
     resize,
     clear,
     close,
