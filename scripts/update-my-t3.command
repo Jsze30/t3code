@@ -30,6 +30,9 @@ while [[ $(osascript -e "application \"${app%.app}\" is running") == true ]]; do
 
 rm -rf "/Applications/$app"
 mv "$staged/$app" "/Applications/$app"
+# A new Mac starts with the settings saved by save-my-t3-settings.command. Never overwrite.
+mkdir -p "$HOME/.t3-jason/userdata"
+cp -n my-t3-settings/*.json "$HOME/.t3-jason/userdata/" 2>/dev/null || true
 # Shells started inside T3 Code set this, which makes the app boot as plain Node and exit.
 env -u ELECTRON_RUN_AS_NODE open "/Applications/$app"
 echo "Updated to $(git log -1 --format='%h %s')"
