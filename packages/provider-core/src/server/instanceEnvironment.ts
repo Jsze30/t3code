@@ -8,12 +8,15 @@ export const mergeProviderInstanceEnvironment = Effect.fn(function* (
   environment: ProviderInstanceEnvironment | undefined,
   baseEnv: NodeJS.ProcessEnv = process.env,
 ) {
+  // The desktop app runs the server as Node through this flag. Agents and their shells
+  // must not inherit it, or every Electron app they start boots as plain Node. Undefined
+  // rather than deleted, so spawns that merge this over process.env still drop it.
+  const next: NodeJS.ProcessEnv = { ...baseEnv, ELECTRON_RUN_AS_NODE: undefined };
   if (!environment || environment.length === 0) {
-    return baseEnv;
+    return next;
   }
 
   const home = yield* HostProcess.HomeDirectory;
-  const next: NodeJS.ProcessEnv = { ...baseEnv };
   for (const variable of environment) {
     // Child processes do not apply shell expansion to environment values.
     next[variable.name] =
