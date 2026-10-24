@@ -140,6 +140,7 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
 import { ComposerCodeBlockNodeView } from "./chat/ComposerCodeBlockNodeView";
 import { resolveAssistantCitationCommentDismissal } from "./chat/assistantCitationCommentDismissal";
 import { composerCodeBlockHighlight } from "./composerCodeBlockHighlight";
+import { composerShellCommandMarker } from "./composerShellCommand";
 import {
   importPastedComposerText,
   readPastedComposerContext,
@@ -855,6 +856,7 @@ function createComposerExtensions(richText: boolean) {
     ComposerCitationExtension,
     ComposerContextReferenceExtension,
     ComposerChipSelectionExtension,
+    composerShellCommandMarker,
     ...(richText
       ? [
           ComposerMarkdownSourceExtension,
