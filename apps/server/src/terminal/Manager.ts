@@ -3184,7 +3184,10 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
             input.command,
           ],
           cwd: input.cwd,
+          // `env` is already the user's full environment minus server-only keys, which
+          // inheriting would add back (ELECTRON_RUN_AS_NODE breaks Electron and its tests).
           env,
+          inheritEnv: false,
           // No stdin, so a command that waits for input ends instead of hanging.
           stdin: "",
           timeout: "30 minutes",
