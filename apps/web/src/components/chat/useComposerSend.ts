@@ -248,7 +248,7 @@ interface ComposerSendInput {
   readonly sideChatDisabledReason: string | null;
   readonly handleNewThreadInActiveProject: () => void;
   /** Runs a composer `!` command; false when it cannot run here. */
-  readonly runShellCommandIntoDraft: (command: string) => boolean;
+  readonly runShellCommandForAgent: (command: string) => boolean;
   readonly persistThreadSettingsForNextTurn: (input: {
     threadId: ThreadId;
     createdAt: string;
@@ -337,7 +337,7 @@ export function useComposerSend(input: ComposerSendInput) {
     sideChatDisabledReason,
     handleNewThreadInActiveProject,
     persistThreadSettingsForNextTurn,
-    runShellCommandIntoDraft,
+    runShellCommandForAgent,
   } = input;
   const linkedEnvironments = useLinkedEnvironments(environmentId);
   const handleNewThread = useNewThreadHandler();
@@ -441,7 +441,7 @@ export function useComposerSend(input: ComposerSendInput) {
       isServerThread &&
       selectedProvider !== undefined &&
       supportsComposerShellCommand(selectedProvider) &&
-      runShellCommandIntoDraft(shellCommand.command)
+      runShellCommandForAgent(shellCommand.command)
     ) {
       promptRef.current = shellCommand.keptPrompt;
       setComposerDraftPrompt(composerDraftTarget, shellCommand.keptPrompt);

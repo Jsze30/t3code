@@ -70,15 +70,24 @@ export type TerminalWriteInput = Schema.Codec.Encoded<typeof TerminalWriteInput>
 /** One non-interactive shell command in a thread's folder, such as a composer `!` command. */
 export const TerminalRunCommandInput = Schema.Struct({
   ...TerminalThreadInput.fields,
+  /** Chosen by the client so it can stop the command while it runs. */
+  commandId: TerminalIdSchema,
   cwd: TrimmedNonEmptyStringSchema,
   command: Schema.String.check(Schema.isNonEmpty()).check(Schema.isMaxLength(65_536)),
 });
 export type TerminalRunCommandInput = Schema.Codec.Encoded<typeof TerminalRunCommandInput>;
 
+export const TerminalCancelCommandInput = Schema.Struct({
+  ...TerminalThreadInput.fields,
+  commandId: TerminalIdSchema,
+});
+export type TerminalCancelCommandInput = Schema.Codec.Encoded<typeof TerminalCancelCommandInput>;
+
 export const TerminalRunCommandResult = Schema.Struct({
   output: Schema.String,
   exitCode: Schema.NullOr(Schema.Number),
   timedOut: Schema.Boolean,
+  cancelled: Schema.Boolean,
 });
 export type TerminalRunCommandResult = typeof TerminalRunCommandResult.Type;
 
