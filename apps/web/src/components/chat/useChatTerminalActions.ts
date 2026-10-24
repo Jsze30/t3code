@@ -31,15 +31,15 @@ import { stackedThreadToast, toastManager } from "../ui/toast";
 import { confirmTerminalClose } from "../../lib/terminalCloseConfirm";
 import { findReusableProjectScriptTerminal } from "../../lib/projectScriptTerminal";
 import {
-  formatTerminalContextReference,
   type TerminalContextDraft,
   type TerminalContextSelection,
 } from "../../lib/terminalContext";
 import { buildMessageContext } from "../../lib/composerContextRecords";
-import { newMessageId, randomUUID } from "~/lib/utils";
+import { newMessageId } from "~/lib/utils";
 import { threadEnvironment } from "../../state/threads";
 import { useOrchestrationCommand } from "../../state/use-orchestration-command";
-import { formatComposerShellCommandOutput } from "../composerShellCommand";
+import { formatComposerShellCommandOutput, isShellCommandChip } from "../composerShellCommand";
+import { composerDraftHasUserContent, useComposerDraftStore } from "../../composerDraftStore";
 import { useTerminalUiStateStore } from "../../terminalUiStateStore";
 import {
   LAST_INVOKED_SCRIPT_BY_PROJECT_KEY,
@@ -140,37 +140,65 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
     reportFailure: false,
   });
   /**
-   * Runs a composer `!` command. When it finishes, its output is sent to the thread it started
-   * in as a terminal excerpt, so the agent reads it and responds.
+   * Runs a draft's `!` command chips. When they finish, the draft is sent to the thread it was
+   * written in with each chip holding its command's output, so the agent reads it and responds.
    */
-  const runShellCommandForAgent = (command: string): boolean => {
+  const runShellCommandsForAgent = (draft: {
+    readonly prompt: string;
+    readonly terminalContexts: ReadonlyArray<TerminalContextDraft>;
+  }): boolean => {
     const thread = activeThread;
-    const run = thread ? terminalActions.runCommand(command) : null;
-    if (!thread || run === null) return false;
+    const threadRef = activeThreadRef;
+    const commands = draft.terminalContexts.filter(isShellCommandChip);
+    if (!thread || !threadRef || commands.length === 0) return false;
+    const runs = commands.map((context) => terminalActions.runCommand(context.text));
+    if (runs.some((run) => run === null)) return false;
+    const label = commands.map((context) => context.terminalLabel).join(", ");
     const toastId = toastManager.add(
       stackedThreadToast({
         type: "loading",
-        title: `Running !${command}`,
-        actionProps: { children: "Stop", onClick: () => void run.cancel() },
+        title: `Running ${label}`,
+        actionProps: {
+          children: "Stop",
+          onClick: () => {
+            for (const run of runs) void run?.cancel();
+          },
+        },
       }),
     );
     void (async () => {
-      const result = await run.result;
+      const results = await Promise.all(runs.map((run) => run!.result));
       toastManager.close(toastId);
-      if (result._tag !== "Success" || result.value.cancelled) return;
-      const text = formatComposerShellCommandOutput({ command, ...result.value });
-      const context: TerminalContextDraft = {
-        id: randomUUID(),
-        threadId: thread.id,
-        createdAt: new Date().toISOString(),
-        terminalId: "shell-command",
-        terminalLabel: `!${command.length > 40 ? `${command.slice(0, 40)}…` : command}`,
-        lineStart: 1,
-        lineEnd: text.split("\n").length,
-        text,
-      };
+      const outputs = results.map((result) =>
+        result._tag === "Success" && !result.value.cancelled ? result.value : null,
+      );
+      if (outputs.some((output) => output === null)) {
+        // Put the message back unless something new was typed meanwhile.
+        const store = useComposerDraftStore.getState();
+        if (!composerDraftHasUserContent(store.getComposerDraft(threadRef))) {
+          store.setPrompt(threadRef, draft.prompt);
+          store.addTerminalContexts(threadRef, [...draft.terminalContexts], {
+            appendReference: false,
+          });
+        }
+        toastManager.add(
+          stackedThreadToast({
+            type: "info",
+            title: `${label} did not finish`,
+            description: "Your message was not sent. It is back in the composer.",
+          }),
+        );
+        return;
+      }
+      const terminalContexts = draft.terminalContexts.map((context) => {
+        const index = commands.indexOf(context);
+        const output = index === -1 ? null : outputs[index];
+        if (!output) return context;
+        const text = formatComposerShellCommandOutput({ command: context.text, ...output });
+        return { ...context, text, lineEnd: text.split("\n").length };
+      });
       const messageContext = buildMessageContext({
-        terminalContexts: [context],
+        terminalContexts,
         reviewComments: [],
         previewAnnotations: [],
       });
@@ -181,7 +209,7 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
           message: {
             messageId: newMessageId(),
             role: "user",
-            text: formatTerminalContextReference(context),
+            text: draft.prompt.trim(),
             attachments: [],
             ...(messageContext === undefined ? {} : { context: messageContext }),
           },
@@ -194,15 +222,15 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
         toastManager.add(
           stackedThreadToast({
             type: "error",
-            title: `Could not send the output of !${command}`,
-            description: "The command finished, but its output did not reach the agent.",
+            title: `Could not send the output of ${label}`,
+            description: "The commands finished, but the message did not reach the agent.",
           }),
         );
       }
     })();
     return true;
   };
-  const runShellCommandForAgentStable = useStableCallback(runShellCommandForAgent);
+  const runShellCommandsForAgentStable = useStableCallback(runShellCommandsForAgent);
   const setTerminalOpen = (open: boolean) => {
     if (!activeThreadRef) return;
     storeSetTerminalOpen(activeThreadRef, open);
@@ -518,7 +546,7 @@ export function useChatTerminalActions(input: ChatTerminalActionsInput) {
     requestCloseTerminalStable,
     runProjectScriptStable,
     runShellCommandStable,
-    runShellCommandForAgentStable,
+    runShellCommandsForAgentStable,
     setTerminalOpenStable,
     splitPanelTerminalStable,
     splitPanelTerminalVerticalStable,

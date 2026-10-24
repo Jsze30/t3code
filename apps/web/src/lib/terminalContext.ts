@@ -79,12 +79,18 @@ function formatTerminalContextRange(selection: { lineStart: number; lineEnd: num
     : `lines ${selection.lineStart}-${selection.lineEnd}`;
 }
 
+/** Marks a composer `!` command: its text is the command until it runs, then its output. */
+export const SHELL_COMMAND_TERMINAL_ID = "shell-command";
+
 export function formatTerminalContextLabel(selection: {
+  terminalId?: string;
   terminalLabel: string;
   lineStart: number;
   lineEnd: number;
 }): string {
-  return `${selection.terminalLabel} ${formatTerminalContextRange(selection)}`;
+  return selection.terminalId === SHELL_COMMAND_TERMINAL_ID
+    ? selection.terminalLabel
+    : `${selection.terminalLabel} ${formatTerminalContextRange(selection)}`;
 }
 
 export function migrateLegacyTerminalContextPlaceholders(

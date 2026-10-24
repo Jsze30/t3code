@@ -15,7 +15,7 @@ import {
   withMessageContext,
   makeThreadErrorSetter,
 } from "../ChatView.logic";
-import { parseComposerShellCommand, supportsComposerShellCommand } from "../composerShellCommand";
+import { isShellCommandChip } from "../composerShellCommand";
 import { isUsageLimitsCommand } from "@t3tools/shared/usageLimits";
 import {
   AuthOrchestrationOperateScope,
@@ -234,8 +234,11 @@ interface ComposerSendInput {
   readonly acknowledgeActiveThreadWoke: () => void;
   readonly handleInteractionModeChange: (mode: ProviderInteractionMode) => void;
   readonly handleNewThreadInActiveProject: () => void;
-  /** Runs a composer `!` command; false when it cannot run here. */
-  readonly runShellCommandForAgent: (command: string) => boolean;
+  /** Runs the draft's `!` command chips, then sends it; false when they cannot run here. */
+  readonly runShellCommandsForAgent: (draft: {
+    readonly prompt: string;
+    readonly terminalContexts: ReadonlyArray<TerminalContextDraft>;
+  }) => boolean;
   readonly persistThreadSettingsForNextTurn: (input: {
     threadId: ThreadId;
     createdAt: string;
@@ -322,7 +325,7 @@ export function useComposerSend(input: ComposerSendInput) {
     handleInteractionModeChange,
     handleNewThreadInActiveProject,
     persistThreadSettingsForNextTurn,
-    runShellCommandForAgent,
+    runShellCommandsForAgent,
   } = input;
   const handleNewThread = useNewThreadHandler();
   const navigate = useNavigate();
@@ -415,18 +418,34 @@ export function useComposerSend(input: ComposerSendInput) {
       return;
     }
 
-    const shellCommand = directAnnotation ? null : parseComposerShellCommand(promptRef.current);
-    const selectedProvider = composerRef.current?.getSendContext()?.selectedProvider;
+    if (!directAnnotation && composerRef.current?.convertShellCommandToChip() === true) return;
     if (
-      shellCommand !== null &&
+      !directAnnotation &&
       isServerThread &&
-      selectedProvider !== undefined &&
-      supportsComposerShellCommand(selectedProvider) &&
-      runShellCommandForAgent(shellCommand.command)
+      composerTerminalContextsRef.current.some(isShellCommandChip)
     ) {
-      promptRef.current = shellCommand.keptPrompt;
-      setComposerDraftPrompt(composerDraftTarget, shellCommand.keptPrompt);
-      composerRef.current?.resetCursorState();
+      const draft = useComposerDraftStore.getState().getComposerDraft(composerDraftTarget);
+      if (draft && composerDraftHasUserContent({ ...draft, prompt: "", terminalContexts: [] })) {
+        toastManager.add(
+          stackedThreadToast({
+            type: "warning",
+            title: "Send ! commands on their own",
+            description: "Remove images, files, and other attachments from this message first.",
+          }),
+        );
+        return;
+      }
+      if (
+        runShellCommandsForAgent({
+          prompt: promptRef.current,
+          terminalContexts: composerTerminalContextsRef.current,
+        })
+      ) {
+        promptRef.current = "";
+        setComposerDraftPrompt(composerDraftTarget, "");
+        useComposerDraftStore.getState().clearTerminalContexts(composerDraftTarget);
+        composerRef.current?.resetCursorState();
+      }
       return;
     }
 

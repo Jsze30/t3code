@@ -63,6 +63,7 @@ export function useComposerCommandKey(input: {
   readonly setComposerHighlightedItemId: Dispatch<SetStateAction<string | null>>;
   readonly dismissComposerTrigger: (trigger: ComposerTrigger | null) => void;
   readonly toggleInteractionMode: () => void;
+  readonly convertShellCommandToChip: () => boolean;
   readonly nudgeComposerMenuHighlight: (key: "ArrowDown" | "ArrowUp") => void;
   readonly onSelectComposerItem: (item: ComposerCommandItem) => void;
   readonly resolveActiveComposerTrigger: () => { trigger: ComposerTrigger | null };
@@ -215,6 +216,9 @@ export function useComposerCommandKey(input: {
         onSelectComposerItem(selectedItem);
         return true;
       }
+    }
+    if (key === "Tab" && !event.shiftKey && !menuIsActive && input.convertShellCommandToChip()) {
+      return true;
     }
     if ((key === "ArrowUp" || key === "ArrowDown") && submissionIntent === null) {
       return navigatePromptHistory(key === "ArrowUp" ? "backward" : "forward", event);
