@@ -29,6 +29,7 @@ export function useThreadTerminalActions(threadRef: ScopedThreadRef | null) {
   const openTerminalCommand = useAtomCommand(terminalEnvironment.open, "terminal open");
   const writeTerminal = useAtomCommand(terminalEnvironment.write, "terminal write");
   const runTerminalCommand = useAtomCommand(terminalEnvironment.runCommand, "Run command");
+  const cancelTerminalCommand = useAtomCommand(terminalEnvironment.cancelCommand, "Stop command");
   const closeTerminalCommand = useAtomCommand(terminalEnvironment.close, "terminal close");
   const serverThread = useQuietThreadShell(threadRef);
   const draftThread = useComposerDraftStore((store) =>
@@ -141,14 +142,19 @@ export function useThreadTerminalActions(threadRef: ScopedThreadRef | null) {
     });
   };
 
-  /** Runs one command in the thread's folder and resolves with its output. */
+  /** Runs one command in the thread's folder; `cancel` stops it while it runs. */
   const runCommand = (command: string) => {
     const location = defaultLaunchLocation();
     if (!threadRef || !location || !canWrite()) return null;
-    return runTerminalCommand({
-      environmentId: threadRef.environmentId,
-      input: { threadId: threadRef.threadId, cwd: location.cwd, command },
-    });
+    const { environmentId, threadId } = threadRef;
+    const commandId = randomUUID();
+    return {
+      result: runTerminalCommand({
+        environmentId,
+        input: { threadId, commandId, cwd: location.cwd, command },
+      }),
+      cancel: () => cancelTerminalCommand({ environmentId, input: { threadId, commandId } }),
+    };
   };
 
   return {
