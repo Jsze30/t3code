@@ -4,8 +4,8 @@ import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
-// Like the Claude Code CLI, a prompt that starts with `!` runs in the thread's folder and its
-// output joins the draft as a terminal excerpt the agent reads with the next message.
+// Like the Claude Code CLI, a prompt that starts with `!` runs in the thread's folder. When it
+// finishes, its output is sent to the agent as a terminal excerpt and the agent responds.
 const SHELL_COMMAND_DRIVERS: ReadonlySet<string> = new Set(["claudeAgent", "codex"]);
 
 export function supportsComposerShellCommand(driverKind: ProviderDriverKind): boolean {
@@ -38,7 +38,7 @@ export function formatComposerShellCommandOutput(input: {
   readonly timedOut: boolean;
 }): string {
   const status = input.timedOut
-    ? "[timed out after 2 minutes]"
+    ? "[timed out after 30 minutes]"
     : input.exitCode !== null && input.exitCode !== 0
       ? `[exit ${input.exitCode}]`
       : null;

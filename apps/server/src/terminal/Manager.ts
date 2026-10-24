@@ -35,6 +35,7 @@ import {
   type TerminalSessionStatus,
   type TerminalSummary,
   type TerminalWriteInput,
+  type TerminalCancelCommandInput,
   type TerminalRunCommandInput,
   type TerminalRunCommandResult,
   ClaudeSettings,
@@ -232,6 +233,9 @@ export class TerminalManager extends Context.Service<
     readonly runCommand: (
       input: TerminalRunCommandInput,
     ) => Effect.Effect<TerminalRunCommandResult, TerminalRunCommandError>;
+
+    /** Stops a `runCommand` that is still running; a finished or unknown one is a no-op. */
+    readonly cancelCommand: (input: TerminalCancelCommandInput) => Effect.Effect<void>;
 
     readonly resize: (
       input: TerminalResizeInput,
@@ -3778,6 +3782,10 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
     );
   };
 
+  const commandCancels = new Map<string, Deferred.Deferred<void>>();
+  const commandKey = (input: { readonly threadId: string; readonly commandId: string }) =>
+    `${input.threadId}\u0000${input.commandId}`;
+
   const runCommand: TerminalManager["Service"]["runCommand"] = Effect.fn("terminal.runCommand")(
     function* (input) {
       const [shell] = yield* resolveShellCandidates(
@@ -3787,7 +3795,10 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
         baseEnv.T3CODE_TERMINAL_SHELL,
       ).pipe(Effect.provideService(FileSystem.FileSystem, fileSystem));
       const env = createTerminalSpawnEnv(baseEnv, null, platform, yield* HostProcess.HomeDirectory);
-      const result = yield* processRunner
+      const key = commandKey(input);
+      const cancel = yield* Deferred.make<void>();
+      commandCancels.set(key, cancel);
+      const run = processRunner
         .run({
           command: shell?.shell ?? "sh",
           args: [
@@ -3799,23 +3810,38 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
           env,
           // No stdin, so a command that waits for input ends instead of hanging.
           stdin: "",
-          timeout: "2 minutes",
+          timeout: "30 minutes",
           timeoutBehavior: "timedOutResult",
           maxOutputBytes: 64 * 1024,
           outputMode: "truncate",
         })
         .pipe(
+          Effect.map((result) => ({
+            output: [result.stdout, result.stderr].filter((text) => text.length > 0).join("\n"),
+            exitCode: result.code === null ? null : Number(result.code),
+            timedOut: result.timedOut,
+            cancelled: false,
+          })),
           Effect.mapError(
             (cause) => new TerminalRunCommandError({ threadId: input.threadId, cause }),
           ),
         );
-      return {
-        output: [result.stdout, result.stderr].filter((text) => text.length > 0).join("\n"),
-        exitCode: result.code === null ? null : Number(result.code),
-        timedOut: result.timedOut,
-      };
+      // Losing the race interrupts the run, and its scope kills the process.
+      return yield* Effect.raceFirst(
+        run,
+        Deferred.await(cancel).pipe(
+          Effect.as({ output: "", exitCode: null, timedOut: false, cancelled: true }),
+        ),
+      ).pipe(Effect.ensuring(Effect.sync(() => commandCancels.delete(key))));
     },
   );
+
+  const cancelCommand: TerminalManager["Service"]["cancelCommand"] = Effect.fn(
+    "terminal.cancelCommand",
+  )(function* (input) {
+    const cancel = commandCancels.get(commandKey(input));
+    if (cancel !== undefined) yield* Deferred.succeed(cancel, undefined);
+  });
 
   const write: TerminalManager["Service"]["write"] = Effect.fn("terminal.write")(
     function* (input, viewerId) {
@@ -3994,6 +4020,7 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
     resyncStream,
     write,
     runCommand,
+    cancelCommand,
     resize,
     clear,
     close,
