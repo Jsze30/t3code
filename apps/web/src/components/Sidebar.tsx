@@ -3904,15 +3904,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             }
                             settlementSupported={serverConfigs.has(thread.environmentId)}
                             snoozeSupported={serverConfigs.has(thread.environmentId)}
-                            pinningSupported={serverConfigs.has(thread.environmentId)}
-                            isPinned={thread.pinnedAt != null}
                             dropVerb={
                               dragState?.activeKey === threadKey
                                 ? resolveSidebarDropVerb(dragState.activeSection, dragTargetSection)
                                 : null
-                            }
-                            dragOverPinned={
-                              dragState?.activeKey === threadKey && dragTargetSection === "pinned"
                             }
                             sweepAction={
                               actionSweep?.keys.has(threadKey) ? actionSweep.action : null
@@ -3970,7 +3965,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             onUnsettle={attemptUnsettle}
                             onSnooze={attemptSnooze}
                             onUnsnooze={attemptUnsnooze}
-                            onUnpin={attemptUnpin}
                             onAcknowledgeWoke={acknowledgeWoke}
                             onFileDropThreads={handleThreadFileDrop}
                             showStatus={worker}
@@ -4082,7 +4076,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                 key="pinned-header"
                                 marker="pinned-header"
                                 label={gt("Pinned", { $context: "sidebar section" })}
-                                visible={from !== null}
+                                visible={from !== null || pinnedThreads.length > 0}
+                                persistent={pinnedThreads.length > 0}
                                 isDropTarget={dragTargetSection === "pinned"}
                               />,
                             );
@@ -4093,7 +4088,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                 key="pinned-divider"
                                 marker="pinned-divider"
                                 label={gt("Active", { $context: "sidebar section" })}
-                                visible={from !== null}
+                                visible={from !== null || pinnedThreads.length > 0}
+                                persistent={pinnedThreads.length > 0}
                                 isDropTarget={dragTargetSection === "active"}
                               />,
                             );
