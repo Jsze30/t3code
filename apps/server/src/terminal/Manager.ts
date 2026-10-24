@@ -3794,7 +3794,13 @@ export const makeWithOptions = Effect.fn("TerminalManager.makeWithOptions")(func
         baseEnv,
         baseEnv.T3CODE_TERMINAL_SHELL,
       ).pipe(Effect.provideService(FileSystem.FileSystem, fileSystem));
-      const env = createTerminalSpawnEnv(baseEnv, null, platform, yield* HostProcess.HomeDirectory);
+      const env = createTerminalSpawnEnv(
+        baseEnv,
+        null,
+        platform,
+        yield* HostProcess.HomeDirectory,
+        input.threadId,
+      );
       const key = commandKey(input);
       const cancel = yield* Deferred.make<void>();
       commandCancels.set(key, cancel);
