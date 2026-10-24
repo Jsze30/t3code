@@ -28,6 +28,7 @@ export interface TerminalLaunchLocation {
 export function useThreadTerminalActions(threadRef: ScopedThreadRef | null) {
   const openTerminalCommand = useAtomCommand(terminalEnvironment.open, "terminal open");
   const writeTerminal = useAtomCommand(terminalEnvironment.write, "terminal write");
+  const runTerminalCommand = useAtomCommand(terminalEnvironment.runCommand, "Run command");
   const closeTerminalCommand = useAtomCommand(terminalEnvironment.close, "terminal close");
   const serverThread = useQuietThreadShell(threadRef);
   const draftThread = useComposerDraftStore((store) =>
@@ -140,8 +141,19 @@ export function useThreadTerminalActions(threadRef: ScopedThreadRef | null) {
     });
   };
 
+  /** Runs one command in the thread's folder and resolves with its output. */
+  const runCommand = (command: string) => {
+    const location = defaultLaunchLocation();
+    if (!threadRef || !location || !canWrite()) return null;
+    return runTerminalCommand({
+      environmentId: threadRef.environmentId,
+      input: { threadId: threadRef.threadId, cwd: location.cwd, command },
+    });
+  };
+
   return {
     canWrite: useStableCallback(canWrite),
+    runCommand: useStableCallback(runCommand),
     allocateTerminalId: useStableCallback(allocateTerminalId),
     launchTerminal: useStableCallback(launchTerminal),
     closeTerminalSession: useStableCallback(closeTerminalSession),

@@ -67,6 +67,33 @@ export const TerminalWriteInput = Schema.Struct({
 });
 export type TerminalWriteInput = Schema.Codec.Encoded<typeof TerminalWriteInput>;
 
+/** One non-interactive shell command in a thread's folder, such as a composer `!` command. */
+export const TerminalRunCommandInput = Schema.Struct({
+  ...TerminalThreadInput.fields,
+  cwd: TrimmedNonEmptyStringSchema,
+  command: Schema.String.check(Schema.isNonEmpty()).check(Schema.isMaxLength(65_536)),
+});
+export type TerminalRunCommandInput = Schema.Codec.Encoded<typeof TerminalRunCommandInput>;
+
+export const TerminalRunCommandResult = Schema.Struct({
+  output: Schema.String,
+  exitCode: Schema.NullOr(Schema.Number),
+  timedOut: Schema.Boolean,
+});
+export type TerminalRunCommandResult = typeof TerminalRunCommandResult.Type;
+
+export class TerminalRunCommandError extends Schema.TaggedError<TerminalRunCommandError>()(
+  "TerminalRunCommandError",
+  {
+    threadId: Schema.String,
+    cause: Schema.Defect(),
+  },
+) {
+  override get message() {
+    return `Failed to run command for thread: ${this.threadId}`;
+  }
+}
+
 export const TerminalResizeInput = Schema.Struct({
   ...TerminalSessionInput.fields,
   cols: TerminalColsSchema,
