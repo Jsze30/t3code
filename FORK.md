@@ -35,33 +35,11 @@ The update script signs with it automatically once it exists.
 
 ## Update
 
-Run `scripts/update-my-t3.command` again, or double-click it in Finder.
-It pulls the latest `jason` branch, rebuilds, quits the running app, and swaps in the new one.
+When Jason says "update", follow the [update skill](.agents/skills/update-my-t3/SKILL.md).
+It rebases `jason` onto the latest official `main`, fixes conflicts so his changes keep working, pushes, and reinstalls the app.
+Run it on either Mac: both share the `jason` branch on GitHub.
 
-When Jason says "update" to an agent running inside T3 Code:
+Running `scripts/update-my-t3.command` by hand, or double-clicking it in Finder, only installs what is already on GitHub's `jason` branch.
+It does not pull official changes.
 
-1. Pull in the latest official changes first, since the daily sync may not have run yet:
-
-   ```sh
-   gh workflow run sync-upstream.yml -R Jsze30/t3code --ref jason
-   ```
-
-   Wait for that run to succeed (`gh run watch`), then `git fetch origin` and `git log --oneline HEAD..origin/jason`.
-   If there is nothing new and the installed app already has the latest local commits, say it is up to date and stop.
-
-2. Check that no other T3 threads are mid-task, since the update quits the app.
-3. Run the script in Terminal.app, not in the agent's own shell, or it dies when the app quits:
-
-   ```sh
-   osascript -e 'tell application "Terminal" to do script "env -u ELECTRON_RUN_AS_NODE ~/Documents/Coding/t3code/scripts/update-my-t3.command"'
-   ```
-
-## Staying in sync with upstream
-
-`.github/workflows/sync-upstream.yml` rebases `jason` onto `upstream/main` daily and pushes it, so new official changes arrive as new commits on `origin/jason`.
-It needs the `SYNC_TOKEN` repository secret.
-If a rebase conflicts, the workflow fails and the conflict must be resolved by hand.
-When resolving one, keep Jason's change working on top of the new official code: take upstream's update, then re-apply his behavior to it.
-Never drop one of his changes to make a conflict go away.
-If his change no longer makes sense on the new code, stop and ask him.
 To keep conflicts rare, put fork-only notes in new files like this one instead of editing upstream files.
