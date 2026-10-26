@@ -874,6 +874,26 @@ export function orderItemsByPreferredIds<TItem, TId>(input: {
   return [...ordered, ...remaining];
 }
 
+/** The first thread in sidebar order that finished since the user last opened it. */
+export function resolveNextDoneThreadKey(input: {
+  readonly threadKeys: readonly string[];
+  readonly currentThreadKey: string | null;
+  readonly threadByKey: ReadonlyMap<string, ThreadStatusInput>;
+  readonly localLastVisitedAtByKey: Readonly<Record<string, string | undefined>>;
+}): string | null {
+  return (
+    input.threadKeys.find((key) => {
+      const thread = input.threadByKey.get(key);
+      if (key === input.currentThreadKey || thread === undefined) return false;
+      const lastVisitedAt = resolveThreadLastVisitedAt(
+        thread.lastVisitedAt,
+        input.localLastVisitedAtByKey[key],
+      );
+      return hasUnseenCompletion({ ...thread, lastVisitedAt });
+    }) ?? null
+  );
+}
+
 export function resolveAdjacentThreadId<T>(input: {
   threadIds: readonly T[];
   currentThreadId: T | null;

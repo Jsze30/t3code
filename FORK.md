@@ -49,11 +49,13 @@ Sidebar:
 - Cards have no branch line (branch, diff counts and provider icons).
 - Pinned threads sit under Pinned and Active dividers instead of showing a pin icon.
 - Next and previous thread wrap around at the ends.
+- Ctrl+` opens the first thread that finished since you last opened it, so pressing it again works through them all.
 
 Chat:
 
 - Esc stops the running turn, unless a popup is open.
 - `!command` in the composer turns into a chip, runs when the message is sent, and attaches its output for Claude and Codex threads.
+- Cmd+Shift+R restarts the agent session, so the desktop menu's Force Reload has no shortcut.
 - New threads start with the thread panel closed.
 - Every model defaults to high effort and fast mode when it offers them.
 
@@ -63,7 +65,7 @@ App and server:
 - Agents and `!` commands do not inherit `ELECTRON_RUN_AS_NODE` from the desktop app.
 - Tests expect this build's name, data folder and defaults.
 
-Fork tooling: this file, the update skill, `scripts/update-my-t3.command`, `scripts/save-my-t3-settings.command` and `my-t3-settings/` (which also holds the Ctrl+1-9 and Ctrl+Tab thread keybindings).
+Fork tooling: this file, the update skill, `scripts/update-my-t3.command`, `scripts/save-my-t3-settings.command` and `my-t3-settings/` (which also holds the Ctrl+1-9, Ctrl+Tab, Ctrl+` and Cmd+Shift+R keybindings).
 
 ## Update
 
