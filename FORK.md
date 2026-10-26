@@ -33,6 +33,38 @@ In Keychain Access, open Certificate Assistant, then Create a Certificate.
 Name it exactly `T3 Code Jason Local Signing` and set the certificate type to Code Signing.
 The update script signs with it automatically once it exists.
 
+## My changes
+
+What this fork does differently from the official app, one line each.
+When you add, change or drop one of Jason's changes, update this list in the same commit.
+
+Sidebar:
+
+- A lead's workers are grouped under it, behind a chevron with a worker count.
+  Clicking the open lead again shows or hides them, with an animation.
+- Settling a lead asks whether to settle its workers too.
+- Standalone leads (`standalone: true` on launch) are not workers of the thread that launched them.
+- Worker rows are slim and say Working or Done, and finished workers rise above running ones.
+- Lead cards have a network icon.
+- Cards have no branch line (branch, diff counts and provider icons).
+- Pinned threads sit under Pinned and Active dividers instead of showing a pin icon.
+- Next and previous thread wrap around at the ends.
+
+Chat:
+
+- Esc stops the running turn, unless a popup is open.
+- `!command` in the composer turns into a chip, runs when the message is sent, and attaches its output for Claude and Codex threads.
+- New threads start with the thread panel closed.
+- Every model defaults to high effort and fast mode when it offers them.
+
+App and server:
+
+- Installs as "T3 Code (Jason)" with its data in `~/.t3-jason`, signed with a fixed local certificate.
+- Agents and `!` commands do not inherit `ELECTRON_RUN_AS_NODE` from the desktop app.
+- Tests expect this build's name, data folder and defaults.
+
+Fork tooling: this file, the update skill, `scripts/update-my-t3.command`, `scripts/save-my-t3-settings.command` and `my-t3-settings/` (which also holds the Ctrl+1-9 and Ctrl+Tab thread keybindings).
+
 ## Update
 
 When Jason says "update", follow the [update skill](.agents/skills/update-my-t3/SKILL.md).
