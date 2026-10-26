@@ -345,11 +345,8 @@ export const make = Effect.gen(function* () {
             accelerator: "CmdOrCtrl+R",
             click: mainContentsClick("reload"),
           },
-          {
-            label: m(msg("Force Reload")),
-            accelerator: "Shift+CmdOrCtrl+R",
-            click: mainContentsClick("forceReload"),
-          },
+          // Cmd+Shift+R restarts the agent session in this build.
+          { label: m(msg("Force Reload")), click: mainContentsClick("forceReload") },
           {
             label: m(msg("Toggle Developer Tools")),
             accelerator: environment.platform === "darwin" ? "Alt+Command+I" : "Ctrl+Shift+I",

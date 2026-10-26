@@ -198,6 +198,7 @@ import {
   planSidebarThreadDrop,
   reduceSidebarProjectScopeMenuState,
   resolveAdjacentThreadId,
+  resolveNextDoneThreadKey,
   resolveSidebarSweepKeys,
   resolveSidebarDropTarget,
   resolveSidebarDropVerb,
@@ -236,6 +237,7 @@ import {
 import { ProjectFavicon } from "./ProjectFavicon";
 import { deriveProviderEntriesByEnvironment } from "../providerInstances";
 import { useStableCallback } from "../hooks/useStableCallback";
+import { useRestartAgentSession } from "../hooks/useRestartAgentSession";
 import {
   resolveSidebarRouteReveal,
   type SidebarRouteReveal,
@@ -3095,6 +3097,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       handleThreadContextMenu(threadRef, position, source, true),
   );
 
+  const restartAgentSession = useStableCallback(useRestartAgentSession());
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to window keydown for thread navigation shortcuts using the current thread list
   useEffect(() => {
     const onWindowKeyDown = (event: KeyboardEvent) => {
@@ -3117,6 +3120,33 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           navigateToThread(scopeThreadRef(targetThread.environmentId, targetThread.id));
         return true;
       };
+      if (command === "thread.nextDone") {
+        navigateToRowKey(
+          resolveNextDoneThreadKey({
+            threadKeys: orderedThreadKeys,
+            currentThreadKey: routeThreadKey,
+            threadByKey,
+            localLastVisitedAtByKey: useUiStateStore.getState().threadLastVisitedAtById,
+          }),
+        );
+        return;
+      }
+      if (command === "thread.restartSession") {
+        const thread = routeThreadKey ? threadByKey.get(routeThreadKey) : undefined;
+        if (!thread) return;
+        event.preventDefault();
+        event.stopPropagation();
+        void restartAgentSession(thread).catch((error: unknown) => {
+          toastManager.add(
+            stackedThreadToast({
+              type: "error",
+              title: "Could not restart agent session",
+              description: error instanceof Error ? error.message : "An error occurred.",
+            }),
+          );
+        });
+        return;
+      }
       const traversalDirection = threadTraversalDirectionFromCommand(command);
       if (traversalDirection !== null) {
         navigateToRowKey(
@@ -3140,7 +3170,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     navigateToDraft,
     navigateToThread,
     orderedRowKeys,
+    orderedThreadKeys,
+    restartAgentSession,
     routeRowKey,
+    routeThreadKey,
     routeThreadRef,
     threadByKey,
   ]);
