@@ -239,11 +239,8 @@ export const make = Effect.gen(function* () {
         submenu: [
           /* Native reload/DevTools/zoom roles target focused guests; these commands must target the app. */
           { label: "Reload", accelerator: "CmdOrCtrl+R", click: mainContentsClick("reload") },
-          {
-            label: "Force Reload",
-            accelerator: "Shift+CmdOrCtrl+R",
-            click: mainContentsClick("forceReload"),
-          },
+          // Cmd+Shift+R restarts the agent session in this build.
+          { label: "Force Reload", click: mainContentsClick("forceReload") },
           {
             label: "Toggle Developer Tools",
             accelerator: environment.platform === "darwin" ? "Alt+Command+I" : "Ctrl+Shift+I",

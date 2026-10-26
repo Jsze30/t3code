@@ -196,6 +196,7 @@ import {
   planSidebarThreadDrop,
   reduceSidebarProjectScopeMenuState,
   resolveAdjacentThreadId,
+  resolveNextDoneThreadKey,
   resolveSidebarSweepKeys,
   resolveSidebarDropTarget,
   resolveSidebarDropVerb,
@@ -232,6 +233,7 @@ import {
 import { ProjectFavicon } from "./ProjectFavicon";
 import { deriveProviderEntriesByEnvironment } from "../providerInstances";
 import { useStableCallback } from "../hooks/useStableCallback";
+import { useRestartAgentSession } from "../hooks/useRestartAgentSession";
 import {
   resolveSidebarRouteReveal,
   type SidebarRouteReveal,
@@ -3007,6 +3009,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     },
   );
 
+  const restartAgentSession = useStableCallback(useRestartAgentSession());
   const routeTerminalOpen = useTerminalUiStateStore((state) =>
     routeThreadRef
       ? selectThreadTerminalUiState(state.terminalUiStateByThreadKey, routeThreadRef).terminalOpen
@@ -3037,6 +3040,33 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         navigateToThread(scopeThreadRef(targetThread.environmentId, targetThread.id));
         return true;
       };
+      if (command === "thread.nextDone") {
+        navigateToThreadKey(
+          resolveNextDoneThreadKey({
+            threadKeys: orderedThreadKeys,
+            currentThreadKey: routeThreadKey,
+            threadByKey,
+            localLastVisitedAtByKey: useUiStateStore.getState().threadLastVisitedAtById,
+          }),
+        );
+        return;
+      }
+      if (command === "thread.restartSession") {
+        const thread = routeThreadKey ? threadByKey.get(routeThreadKey) : undefined;
+        if (!thread) return;
+        event.preventDefault();
+        event.stopPropagation();
+        void restartAgentSession(thread).catch((error: unknown) => {
+          toastManager.add(
+            stackedThreadToast({
+              type: "error",
+              title: "Could not restart agent session",
+              description: error instanceof Error ? error.message : "An error occurred.",
+            }),
+          );
+        });
+        return;
+      }
       const traversalDirection = threadTraversalDirectionFromCommand(command);
       if (traversalDirection !== null) {
         navigateToThreadKey(
@@ -3058,8 +3088,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     keybindings,
     navigateToThread,
     orderedThreadKeys,
+    restartAgentSession,
     routeRowThreadKey,
     routeTerminalOpen,
+    routeThreadKey,
     threadByKey,
   ]);
 

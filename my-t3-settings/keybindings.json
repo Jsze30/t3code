@@ -412,5 +412,13 @@
   {
     "key": "ctrl+shift+tab",
     "command": "thread.previous"
+  },
+  {
+    "key": "mod+shift+r",
+    "command": "thread.restartSession"
+  },
+  {
+    "key": "ctrl+`",
+    "command": "thread.nextDone"
   }
 ]
