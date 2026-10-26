@@ -5,7 +5,7 @@ description: Update Jason's T3 Code fork and installed app. Rebases the jason br
 
 # Update my T3
 
-Work in `~/Documents/Coding/t3code` on the `jason` branch.
+Work in this Mac's checkout (`~/Documents/Coding/t3code` or `~/Documents/t3code`) on the `jason` branch.
 Jason uses this on two Macs, so the branch on GitHub may be ahead of this checkout.
 
 ## Get the latest code
@@ -26,7 +26,8 @@ Jason uses this on two Macs, so the branch on GitHub may be ahead of this checko
 
 Save the starting point with `before=$(git rev-parse HEAD)`, then `git rebase upstream/main`.
 
-When a commit conflicts, Jason's change must keep working on top of the new official code:
+When a commit conflicts, Jason's change must keep working on top of the new official code.
+[My changes](../../../FORK.md#my-changes) lists what each of his changes does.
 
 - Read his commit (`git show REBASE_HEAD`) to understand what it does for him.
 - Read what upstream changed in the same file (`git log -p ORIG_HEAD..upstream/main -- <file>`) to understand why.
@@ -70,7 +71,7 @@ The install quits the app, which ends this thread's turn too.
 3. Start the install in Terminal so it survives the app quitting:
 
    ```sh
-   open -a Terminal ~/Documents/Coding/t3code/scripts/update-my-t3.command
+   open -a Terminal "$(git rev-parse --show-toplevel)/scripts/update-my-t3.command"
    ```
 
    Use `open`, not `osascript ... do script`, which needs a macOS automation permission and times out without it.
