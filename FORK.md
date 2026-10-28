@@ -50,6 +50,7 @@ Sidebar:
 - Pinned threads sit under Pinned and Active dividers instead of showing a pin icon.
 - Next and previous thread wrap around at the ends.
 - Ctrl+` opens the first thread that finished since you last opened it, so pressing it again works through them all.
+  With none left, it flips back to the thread you had open before.
 
 Chat:
 
