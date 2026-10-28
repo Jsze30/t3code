@@ -417,6 +417,7 @@ function SidebarWorkerList(props: { readonly orderKey: string; readonly children
   };
   // Cached on the order key, so the effect runs only when the rows reorder.
   const pass = { orderKey: props.orderKey, animate: true };
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- tells the worker list motion controller to slide rows after they reorder
   useLayoutEffect(() => {
     motionRef.current?.update(pass.animate);
   }, [pass]);
@@ -1652,32 +1653,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         : () => void router.navigate({ to: "/" });
   };
 
-  const attemptSettle = (
-    threadRef: ScopedThreadRef,
-    opts: { coSettlingKeys?: ReadonlySet<string> } = {},
-  ) => {
-    const workers =
-      opts.coSettlingKeys === undefined
-        ? workersByLeadKeyRef.current.get(scopedThreadKey(threadRef))
-        : undefined;
-    if (workers !== undefined && workers.length > 0) {
-      setLeadSettlePrompt({ open: true, threadRef, workers });
-      return;
-    }
-    settleNow(threadRef, opts);
-  };
-  const settleLead = (includeWorkers: boolean) => {
-    if (leadSettlePrompt === null) return;
-    setLeadSettlePrompt({ ...leadSettlePrompt, open: false });
-    const refs = [
-      leadSettlePrompt.threadRef,
-      ...(includeWorkers
-        ? leadSettlePrompt.workers.map((worker) => scopeThreadRef(worker.environmentId, worker.id))
-        : []),
-    ];
-    const coSettlingKeys = new Set(refs.map(scopedThreadKey));
-    for (const ref of refs) settleNow(ref, { coSettlingKeys });
-  };
   const settleNow = (
     threadRef: ScopedThreadRef,
     opts: { coSettlingKeys?: ReadonlySet<string> } = {},
@@ -1714,6 +1689,32 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         navigateAfterSettle?.();
       }
     })();
+  };
+  const attemptSettle = (
+    threadRef: ScopedThreadRef,
+    opts: { coSettlingKeys?: ReadonlySet<string> } = {},
+  ) => {
+    const workers =
+      opts.coSettlingKeys === undefined
+        ? workersByLeadKeyRef.current.get(scopedThreadKey(threadRef))
+        : undefined;
+    if (workers !== undefined && workers.length > 0) {
+      setLeadSettlePrompt({ open: true, threadRef, workers });
+      return;
+    }
+    settleNow(threadRef, opts);
+  };
+  const settleLead = (includeWorkers: boolean) => {
+    if (leadSettlePrompt === null) return;
+    setLeadSettlePrompt({ ...leadSettlePrompt, open: false });
+    const refs = [
+      leadSettlePrompt.threadRef,
+      ...(includeWorkers
+        ? leadSettlePrompt.workers.map((worker) => scopeThreadRef(worker.environmentId, worker.id))
+        : []),
+    ];
+    const coSettlingKeys = new Set(refs.map(scopedThreadKey));
+    for (const ref of refs) settleNow(ref, { coSettlingKeys });
   };
   // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- registers this sidebar's settle handler in the module-level settleAndAdvance registry
   useEffect(() => registerSettleAndAdvance(attemptSettle), [attemptSettle]);
