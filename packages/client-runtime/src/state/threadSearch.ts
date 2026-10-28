@@ -43,6 +43,16 @@ export function claimThreadOpen(environmentId: EnvironmentId, threadId: string, 
   return true;
 }
 
+/** When the user last opened the thread, on this client or as the server recorded it. */
+export function threadLastOpenedAt(
+  thread: Pick<EnvironmentThreadShell, "environmentId" | "id" | "opens">,
+): number {
+  return Math.max(
+    localThreadOpens.get(`${thread.environmentId}:${thread.id}`) ?? 0,
+    thread.opens?.openedAt ?? 0,
+  );
+}
+
 export interface EnvironmentThreadSearchMatch extends OrchestrationThreadSearchMatch {
   readonly environmentId: EnvironmentId;
 }

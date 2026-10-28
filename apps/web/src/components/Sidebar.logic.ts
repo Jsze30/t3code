@@ -874,6 +874,21 @@ export function orderItemsByPreferredIds<TItem, TId>(input: {
   return [...ordered, ...remaining];
 }
 
+/** The thread opened most recently before the current one, for flipping back and forth. */
+export function resolveLastOpenedThreadKey<T>(input: {
+  readonly threadByKey: ReadonlyMap<string, T>;
+  readonly currentThreadKey: string | null;
+  readonly lastOpenedAt: (thread: T) => number;
+}): string | null {
+  let best: { key: string; openedAt: number } | null = null;
+  for (const [key, thread] of input.threadByKey) {
+    if (key === input.currentThreadKey) continue;
+    const openedAt = input.lastOpenedAt(thread);
+    if (openedAt > 0 && (best === null || openedAt > best.openedAt)) best = { key, openedAt };
+  }
+  return best?.key ?? null;
+}
+
 /** The first thread in sidebar order that finished since the user last opened it. */
 export function resolveNextDoneThreadKey(input: {
   readonly threadKeys: readonly string[];

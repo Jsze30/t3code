@@ -36,6 +36,7 @@ import {
 import { sortSettledThreads } from "@t3tools/client-runtime/state/thread-sort";
 import {
   nextShownOrder,
+  threadLastOpenedAt,
   threadSearchMatchKey,
   threadSearchSubject,
   type ShownOrder,
@@ -186,6 +187,7 @@ import {
   planSidebarThreadDrop,
   reduceSidebarProjectScopeMenuState,
   resolveAdjacentThreadId,
+  resolveLastOpenedThreadKey,
   resolveNextDoneThreadKey,
   resolveSidebarSweepKeys,
   resolveSidebarDropTarget,
@@ -2968,7 +2970,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             currentThreadKey: routeThreadKey,
             threadByKey,
             localLastVisitedAtByKey: useUiStateStore.getState().threadLastVisitedAtById,
-          }),
+          }) ??
+            resolveLastOpenedThreadKey({
+              threadByKey,
+              currentThreadKey: routeThreadKey,
+              lastOpenedAt: threadLastOpenedAt,
+            }),
         );
         return;
       }
