@@ -17,7 +17,25 @@ Work happens on the `jason` branch, not `main`.
 4. Build and install the app: `~/Documents/Coding/t3code/scripts/update-my-t3.command`
 
 The script builds the desktop app, puts "T3 Code (Jason)" in /Applications with the saved [settings](#settings), and opens it.
+On a fresh checkout, it copies `.env.example` to `.env` so T3 Connect is available, preserving any existing `.env`.
 It only works on macOS.
+
+## T3 Connect on each Mac
+
+T3 Connect's code is included in the fork, but upstream disables it in fresh source builds unless its public configuration is supplied.
+The official releases supply those settings during their build; our install script copies the upstream `.env.example` when `.env` is missing.
+These are public application identifiers, not account credentials.
+The local `.env` is gitignored and does not travel with a pull.
+
+On another Mac, pull the `jason` branch first, then run `scripts/update-my-t3.command` to rebuild and reinstall the app.
+Pulling alone does not update an already installed app.
+If that checkout already has an `.env`, the script preserves it; make sure it contains the four active `T3CODE_CLERK_*` and `T3CODE_RELAY_URL` settings from `.env.example` before building.
+Preserve unrelated local settings and any intentional custom relay configuration.
+
+After the app reopens, sign in to T3 Connect in Settings and enable it under Sharing & access.
+Sign in to the same account in the official phone app and select that Mac.
+Each Mac needs its own sign-in, and a Mac being accessed remotely must remain awake, online, and running T3 Code.
+The phone connection still needs to be verified after sign-in; a successful build only confirms that the configuration is included.
 
 ## Settings
 
