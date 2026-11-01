@@ -7,6 +7,9 @@ cd "${0:A:h}/.."
 
 git switch jason
 git pull --rebase
+if [[ ! -e .env ]]; then
+  cp .env.example .env
+fi
 vp i
 vp run dist:desktop:dmg
 
