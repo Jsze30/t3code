@@ -248,6 +248,7 @@ import {
 import { stackedThreadToast, toastManager } from "./ui/toast";
 import { titleRegenerationToast } from "./threadTitleRegenerationToast";
 import { copyThreadReference } from "../lib/copyThreadReference";
+import { newThreadId } from "../lib/utils";
 import { threadChipCopyTarget } from "@t3tools/client-runtime/thread-reference";
 import {
   AlertDialog,
@@ -1054,6 +1055,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const regenerateThreadTitle = useOrchestrationCommand(threadEnvironment.regenerateTitle, {
     reportFailure: false,
   });
+  const createThread = useOrchestrationCommand(threadEnvironment.create, { reportFailure: false });
   const { copyToClipboard: copyPathToClipboard } = useCopyToClipboard<{ path: string }>({
     onError: (error) => {
       toastManager.add(
@@ -2930,6 +2932,37 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                   type: "error",
                   title: gt("Could not create thread"),
                   description: thrownErrorMessage(error, m) ?? gt("An error occurred."),
+                }),
+              );
+            }
+            return;
+          }
+          case "new-worker": {
+            // Shares the lead's workspace and settings, like a worker an agent launches.
+            const workerRef = scopeThreadRef(thread.environmentId, newThreadId());
+            const result = await createThread({
+              environmentId: thread.environmentId,
+              input: {
+                threadId: workerRef.threadId,
+                projectId: thread.projectId,
+                title: "New worker",
+                modelSelection: thread.modelSelection,
+                runtimeMode: thread.runtimeMode,
+                interactionMode: thread.interactionMode,
+                branch: thread.branch ?? null,
+                worktreePath: thread.worktreePath ?? null,
+                launchedByThreadId: thread.id,
+              },
+            });
+            if (result._tag === "Success") {
+              await navigateToThread(workerRef);
+            } else if (!isAtomCommandInterrupted(result)) {
+              const error = squashAtomCommandFailure(result);
+              toastManager.add(
+                stackedThreadToast({
+                  type: "error",
+                  title: "Could not create worker thread",
+                  description: error instanceof Error ? error.message : "An error occurred.",
                 }),
               );
             }
