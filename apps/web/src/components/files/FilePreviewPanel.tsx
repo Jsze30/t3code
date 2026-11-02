@@ -1671,7 +1671,7 @@ export default function FilePreviewPanel({
           ) : null}
         </div>
       ) : null}
-      {relativePath && !attachment && !isHostFile && !canWriteFiles && !fileAccess.isPending ? (
+      {relativePath && !attachment && !canWriteFiles && !fileAccess.isPending ? (
         <div className="shrink-0 border-b px-3 py-1.5 text-2xs text-muted-foreground">
           <T>Read-only connection. Unsaved edits are kept until write access returns.</T>
         </div>
@@ -1846,7 +1846,7 @@ export default function FilePreviewPanel({
                 threadRef={threadRef}
                 contents={file.data.contents}
                 workspaceMutationId={workspaceMutationId}
-                readOnly={file.data.truncated || isHostFile || !canWriteFiles}
+                readOnly={file.data.truncated || !canWriteFiles}
                 onPendingChange={onPendingChange}
               />
             ) : tableDelimiter && renderTable ? (
@@ -1856,7 +1856,7 @@ export default function FilePreviewPanel({
                 text={file.data.contents}
                 delimiter={tableDelimiter}
               />
-            ) : file.data.truncated || isHostFile || !canWriteFiles ? (
+            ) : file.data.truncated || !canWriteFiles ? (
               <SourceFilePreview
                 name={relativePath}
                 text={file.data.contents}
