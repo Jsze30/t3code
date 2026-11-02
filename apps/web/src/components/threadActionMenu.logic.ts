@@ -4,6 +4,7 @@ import type { SnoozePreset } from "@t3tools/client-runtime/state/thread-settled"
 export type ThreadActionMenuId =
   | "find"
   | "new-thread-on-branch"
+  | "new-worker"
   | "filter-by-project"
   | "turn-into-project"
   | "project-settings"
@@ -129,6 +130,7 @@ export function buildThreadActionMenuItems(
           },
         ]
       : []),
+    { id: "new-worker", label: "New worker thread", icon: "message-square-plus" },
     ...(state.supports.pinning
       ? [
           state.isPinned

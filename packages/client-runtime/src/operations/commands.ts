@@ -78,6 +78,7 @@ export interface CreateThreadInput extends CommandMetadata {
   readonly interactionMode: ProviderInteractionMode;
   readonly branch: string | null;
   readonly worktreePath: string | null;
+  readonly launchedByThreadId?: ThreadId;
 }
 
 export interface ThreadCommandInput extends CommandMetadata {
@@ -409,6 +410,9 @@ export const createThread = Effect.fn("EnvironmentCommands.createThread")(functi
     interactionMode: input.interactionMode,
     branch: input.branch,
     worktreePath: input.worktreePath,
+    ...(input.launchedByThreadId === undefined
+      ? {}
+      : { launchedByThreadId: input.launchedByThreadId }),
   });
 });
 

@@ -61,6 +61,7 @@ Sidebar:
 - A lead's workers are grouped under it, behind a chevron with a worker count.
   Clicking the open lead again shows or hides them, with an animation.
 - Settling a lead asks whether to settle its workers too.
+- Right-clicking a card offers New worker thread, which opens a worker of that thread in the same workspace and settings.
 - Standalone leads (`standalone: true` on launch) are not workers of the thread that launched them.
 - Worker rows are slim and say Working or Done, and finished workers rise above running ones.
 - Lead cards have a network icon.
@@ -77,6 +78,8 @@ Chat:
 - Cmd+Shift+R restarts the agent session, so the desktop menu's Force Reload has no shortcut.
 - New threads start with the thread panel closed.
 - Every model defaults to high effort and fast mode when it offers them.
+- Closing the right panel with a browser tab open just closes it, instead of floating the browser over chat.
+- Cmd+U opens the usage page and also closes it, going back to where you were.
 - Files outside the project (like `~/.claude/CLAUDE.md`) can be edited in the right panel, not just read.
   Saving only overwrites existing files, and never touches T3's own data or git folders.
 

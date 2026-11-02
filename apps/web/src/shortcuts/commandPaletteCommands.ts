@@ -90,7 +90,13 @@ export function installCommandPaletteCommands(
       "usage.open": (event) => {
         consume(event);
         dispatchCommandPalette({ _tag: "SetOpen", open: false });
-        void router.navigate({ to: "/usage" });
+        if (router.state.location.pathname !== "/usage") {
+          void router.navigate({ to: "/usage" });
+        } else if (router.history.canGoBack()) {
+          router.history.back();
+        } else {
+          void router.navigate({ to: "/" });
+        }
       },
       "commandPalette.toggle": toggleOverlay("commandPalette.toggle"),
       "filePicker.toggle": toggleOverlay("filePicker.toggle"),
