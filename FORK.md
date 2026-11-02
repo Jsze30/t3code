@@ -77,6 +77,8 @@ Chat:
 - Cmd+Shift+R restarts the agent session, so the desktop menu's Force Reload has no shortcut.
 - New threads start with the thread panel closed.
 - Every model defaults to high effort and fast mode when it offers them.
+- Files outside the project (like `~/.claude/CLAUDE.md`) can be edited in the right panel, not just read.
+  Saving only overwrites existing files, and never touches T3's own data or git folders.
 
 App and server:
 

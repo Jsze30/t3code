@@ -458,10 +458,102 @@ export const make = Effect.gen(function* () {
     );
   });
 
+  const inGitFolder = Effect.fn("WorkspaceFileSystem.inGitFolder")(function* (
+    input: ProjectWriteFileInput,
+    resolvedPath: string,
+    checkedPath: string,
+  ) {
+    return yield* Effect.tryPromise({
+      try: () => isInGitFolder(checkedPath),
+      catch: (cause) =>
+        new WorkspaceFileSystemOperationError({
+          workspaceRoot: input.cwd,
+          relativePath: input.relativePath,
+          resolvedPath,
+          operationPath: checkedPath,
+          operation: "stat",
+          cause,
+        }),
+    });
+  });
+
+  /**
+   * An absolute or `~/` path saves a host file the right panel opened, so it must
+   * already exist: host saves never create files. Server state and git folders
+   * stay off limits, and network paths are refused like reads refuse them.
+   */
+  const resolveHostWriteTarget = Effect.fn("WorkspaceFileSystem.resolveHostWriteTarget")(function* (
+    input: ProjectWriteFileInput,
+    requestedPath: string,
+  ) {
+    const hostPath = requestedPath.startsWith("~/")
+      ? expandHomePath(requestedPath, yield* HostProcess.HomeDirectory)
+      : requestedPath;
+    if (isNetworkPath(hostPath)) {
+      return yield* new WorkspacePaths.WorkspacePathOutsideRootError({
+        workspaceRoot: input.cwd,
+        relativePath: input.relativePath,
+      });
+    }
+    const realTargetPath = yield* Effect.tryPromise({
+      try: () => NodeFSP.realpath(hostPath),
+      catch: (cause) =>
+        new WorkspaceFileSystemOperationError({
+          workspaceRoot: input.cwd,
+          relativePath: input.relativePath,
+          resolvedPath: hostPath,
+          operationPath: hostPath,
+          operation: "realpath-target",
+          cause,
+        }),
+    });
+    const stat = yield* Effect.tryPromise({
+      try: () => NodeFSP.stat(realTargetPath),
+      catch: (cause) =>
+        new WorkspaceFileSystemOperationError({
+          workspaceRoot: input.cwd,
+          relativePath: input.relativePath,
+          resolvedPath: realTargetPath,
+          operationPath: realTargetPath,
+          operation: "stat",
+          cause,
+        }),
+    });
+    if (!stat.isFile()) {
+      return yield* new WorkspacePathNotFileError({
+        workspaceRoot: input.cwd,
+        relativePath: input.relativePath,
+        resolvedPath: realTargetPath,
+      });
+    }
+    if (yield* isServerInternalPath(realTargetPath)) {
+      return yield* new WorkspacePaths.WorkspacePathOutsideRootError({
+        workspaceRoot: input.cwd,
+        relativePath: input.relativePath,
+      });
+    }
+    if (
+      (yield* inGitFolder(input, realTargetPath, realTargetPath)) ||
+      (yield* inGitFolder(input, realTargetPath, path.normalize(hostPath)))
+    ) {
+      return yield* new WorkspaceFilePathEscapeError({
+        workspaceRoot: input.cwd,
+        relativePath: input.relativePath,
+        resolvedWorkspaceRoot: input.cwd,
+        resolvedPath: realTargetPath,
+      });
+    }
+    return { relativePath: requestedPath, realTargetPath };
+  });
+
   // Resolve existing ancestors and reject dangling links so creation cannot follow symlinks outside root.
   const resolveWriteTarget = Effect.fn("WorkspaceFileSystem.resolveWriteTarget")(function* (
     input: ProjectWriteFileInput,
   ) {
+    const requestedPath = input.relativePath.trim();
+    if (requestedPath.startsWith("~/") || path.isAbsolute(requestedPath)) {
+      return yield* resolveHostWriteTarget(input, requestedPath);
+    }
     const target = yield* workspacePaths.resolveRelativePathWithinRoot({
       workspaceRoot: input.cwd,
       relativePath: input.relativePath,
@@ -511,24 +603,10 @@ export const make = Effect.gen(function* () {
     });
     // The path as named is checked too: a `.git/config` symlink resolves away the `.git`.
     const namedTargetPath = path.join(realWorkspaceRoot, ...segments);
-    const inGitFolder = Effect.fn("WorkspaceFileSystem.inGitFolder")((checkedPath: string) =>
-      Effect.tryPromise({
-        try: () => isInGitFolder(checkedPath),
-        catch: (cause) =>
-          new WorkspaceFileSystemOperationError({
-            workspaceRoot: input.cwd,
-            relativePath: input.relativePath,
-            resolvedPath: realTargetPath,
-            operationPath: checkedPath,
-            operation: "stat",
-            cause,
-          }),
-      }),
-    );
     if (
       !isInsideRealRoot(realWorkspaceRoot, realTargetPath) ||
-      (yield* inGitFolder(realTargetPath)) ||
-      (yield* inGitFolder(namedTargetPath))
+      (yield* inGitFolder(input, realTargetPath, realTargetPath)) ||
+      (yield* inGitFolder(input, realTargetPath, namedTargetPath))
     ) {
       return yield* new WorkspaceFilePathEscapeError({
         workspaceRoot: input.cwd,

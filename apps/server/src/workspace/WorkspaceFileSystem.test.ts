@@ -493,19 +493,61 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceFileSystemLive", (i
       }),
     );
 
-    it.effect("rejects writes by absolute path", () =>
+    it.effect("saves existing host files outside the workspace by absolute or ~/ path", () =>
       Effect.gen(function* () {
         const workspaceFileSystem = yield* WorkspaceFileSystem.WorkspaceFileSystem;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const path = yield* Path.Path;
+        const cwd = yield* makeTempDir;
+        const home = yield* makeTempDir;
+        yield* writeTextFile(home, "notes.md", "# Notes\n");
+        yield* writeTextFile(home, ".claude/CLAUDE.md", "# Rules\n");
+        const absolutePath = path.join(home, "notes.md");
+
+        expect(
+          yield* workspaceFileSystem.writeFile({
+            cwd,
+            relativePath: absolutePath,
+            contents: "# Edited\n",
+          }),
+        ).toEqual({ relativePath: absolutePath });
+        yield* workspaceFileSystem
+          .writeFile({ cwd, relativePath: "~/.claude/CLAUDE.md", contents: "# New rules\n" })
+          .pipe(Effect.provideService(HostProcess.HomeDirectory, home));
+
+        expect(yield* fileSystem.readFileString(absolutePath)).toBe("# Edited\n");
+        expect(yield* fileSystem.readFileString(path.join(home, ".claude/CLAUDE.md"))).toBe(
+          "# New rules\n",
+        );
+        expect(yield* fileSystem.readDirectory(cwd)).toEqual([]);
+      }),
+    );
+
+    it.effect("refuses host writes that create files or touch server state", () =>
+      Effect.gen(function* () {
+        const workspaceFileSystem = yield* WorkspaceFileSystem.WorkspaceFileSystem;
+        const fileSystem = yield* FileSystem.FileSystem;
+        const config = yield* ServerConfig.ServerConfig;
         const path = yield* Path.Path;
         const cwd = yield* makeTempDir;
         const outsideDir = yield* makeTempDir;
-        const absolutePath = path.join(outsideDir, "cleanup-report.md");
+        yield* writeTextFile(config.secretsDir, "example.bin", "secret\n");
+        const missingPath = path.join(outsideDir, "missing.md");
+        const secretPath = path.join(config.secretsDir, "example.bin");
 
-        const error = yield* workspaceFileSystem
-          .writeFile({ cwd, relativePath: absolutePath, contents: "# Edited\n" })
-          .pipe(Effect.flip);
+        expect(
+          yield* workspaceFileSystem
+            .writeFile({ cwd, relativePath: missingPath, contents: "# New\n" })
+            .pipe(Effect.flip),
+        ).toBeInstanceOf(WorkspaceFileSystem.WorkspaceFileSystemOperationError);
+        expect(
+          yield* workspaceFileSystem
+            .writeFile({ cwd, relativePath: secretPath, contents: "leak\n" })
+            .pipe(Effect.flip),
+        ).toBeInstanceOf(WorkspacePaths.WorkspacePathOutsideRootError);
 
-        expect(error).toBeInstanceOf(WorkspacePaths.WorkspacePathOutsideRootError);
+        expect(yield* fileSystem.exists(missingPath)).toBe(false);
+        expect(yield* fileSystem.readFileString(secretPath)).toBe("secret\n");
       }),
     );
 
@@ -737,6 +779,7 @@ it.layer(layerTest, { excludeTestServices: true })("WorkspaceFileSystemLive", (i
           [path.join(cwd, ".bare"), "hooks/post-checkout"],
           [path.join(cwd, ".bare/hooks"), "post-checkout"],
           [path.join(cwd, ".bare/worktrees/main"), "commondir"],
+          [cwd, path.join(cwd, ".git/config")],
           ...(symlinksSupported ? [[cwd, "docs/config"] as const] : []),
         ] as const) {
           const error = yield* workspaceFileSystem
