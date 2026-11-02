@@ -7,6 +7,7 @@ import { m, type MessageResolver } from "../i18n/messages";
 export type ThreadActionMenuId =
   | "find"
   | "new-thread-on-branch"
+  | "new-worker"
   | "filter-by-project"
   | "turn-into-project"
   | "project-settings"
@@ -158,6 +159,7 @@ export function buildThreadActionMenuItems(
           },
         ]
       : []),
+    { id: "new-worker", label: "New worker thread", icon: "message-square-plus" },
     ...(state.supports.pinning
       ? [
           state.isPinned
