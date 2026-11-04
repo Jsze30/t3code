@@ -1,11 +1,19 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { T, useGT } from "gt-react";
 import { XIcon } from "lucide-react";
-import { useRef, useState, type CSSProperties, type ReactNode } from "react";
+import {
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+  type CSSProperties,
+  type ReactNode,
+} from "react";
 
 import { getCommandPaletteOpener } from "../commandPaletteStore";
 import { useNativeTitlebarHeight } from "../lib/windowControlsOverlay";
 import { requestWorkspaceFocus } from "../lib/workspaceFocus";
+import { registerMenuAction } from "../shortcuts/dispatcher";
 import { useCloseAppModal } from "./sidebar/mainAppLocation";
 import { GlobalVoiceInputIndicator } from "./chat/GlobalVoiceInputIndicator";
 import { Button } from "./ui/button";
@@ -17,7 +25,16 @@ import { Tooltip, TooltipPopup, TooltipTrigger } from "./ui/tooltip";
  * backdrop returns to the page that opened it. Keyboard guards that skip dialogs exempt
  * `[data-app-modal]`, because these pages own their shortcuts.
  */
-export function AppRouteModal({ label, children }: { label: string; children: ReactNode }) {
+export function AppRouteModal({
+  label,
+  closeMenuAction,
+  children,
+}: {
+  label: string;
+  /** Desktop menu action that closes this modal while it is open. */
+  closeMenuAction?: string;
+  children: ReactNode;
+}) {
   const closeAppModal = useCloseAppModal();
   const [open, setOpen] = useState(true);
   // Text selection that ends on the backdrop is not a dismissal.
@@ -36,6 +53,20 @@ export function AppRouteModal({ label, children }: { label: string; children: Re
   // 1.5rem inset is shorter than the strip.
   const nativeTitlebarHeight = useNativeTitlebarHeight();
 
+  const close = () => {
+    // Closing unmounts a focused field without a blur, so commit-on-blur rows would
+    // drop what was typed. Blur first so they commit.
+    const focused = document.activeElement;
+    if (focused instanceof HTMLElement && popupRef.current?.contains(focused)) focused.blur();
+    setOpen(false);
+  };
+  const closeFromMenu = useEffectEvent(close);
+
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- subscribes to the desktop menu, which lives outside React
+  useEffect(() => {
+    if (closeMenuAction) return registerMenuAction(closeMenuAction, () => closeFromMenu());
+  }, [closeMenuAction]);
+
   return (
     <DialogPrimitive.Root
       open={open}
@@ -53,11 +84,7 @@ export function AppRouteModal({ label, children }: { label: string; children: Re
         ) {
           return eventDetails.cancel();
         }
-        // Closing unmounts a focused field without a blur, so commit-on-blur rows would
-        // drop what was typed. Blur first so they commit.
-        const focused = document.activeElement;
-        if (focused instanceof HTMLElement && popupRef.current?.contains(focused)) focused.blur();
-        setOpen(false);
+        close();
       }}
       onOpenChangeComplete={(nextOpen) => {
         if (!nextOpen) void closeAppModal();

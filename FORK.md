@@ -80,6 +80,7 @@ Chat:
 - Every model defaults to high effort and fast mode when it offers them.
 - Closing the right panel with a browser tab open just closes it, instead of floating the browser over chat.
 - Cmd+U opens the usage page and also closes it, going back to where you were.
+- Cmd+, opens Settings and also closes it, going back to where you were.
 - Files outside the project (like `~/.claude/CLAUDE.md`) can be edited in the right panel, not just read.
   Saving only overwrites existing files, and never touches T3's own data or git folders.
 
