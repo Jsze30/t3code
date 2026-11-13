@@ -643,6 +643,10 @@ type SidebarThreadRowProps = {
   showStatus?: boolean;
   /** The thread has workers listed under it. */
   isLead?: boolean;
+  /** A lead's worker list, inside the row so dragging the lead carries it. */
+  workers?: ReactNode;
+  /** Dropping the dragged thread here makes it this thread's worker. */
+  isNestTarget?: boolean;
 };
 
 // Mounted only while renaming, so each rename starts uncommitted.
@@ -1033,8 +1037,11 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
     shouldRecede &&
       (status === "preparing" || status === "working") &&
       "opacity-70 transition-opacity hover:opacity-100 focus-within:opacity-100 motion-reduce:transition-none",
-    isFileDragOver && "ring-1 ring-inset ring-primary/70",
-    isFileDragOver && !props.isActive && !isSelected && "bg-sidebar-row-hover",
+    (isFileDragOver || props.isNestTarget) && "ring-1 ring-inset ring-primary/70",
+    (isFileDragOver || props.isNestTarget) &&
+      !props.isActive &&
+      !isSelected &&
+      "bg-sidebar-row-hover",
     props.sortable?.isDragging &&
       "bg-sidebar bg-linear-to-b from-sidebar-row-active to-sidebar-row-active text-sidebar-foreground opacity-100 shadow-lg",
   );
@@ -1313,6 +1320,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
           "list-none [content-visibility:auto] [contain-intrinsic-size:auto_--spacing(9)]",
           metaLine !== null && multiline && "[contain-intrinsic-size:auto_--spacing(13.5)]",
           sortable?.isDragging && "relative z-20",
+          // A dragged worker follows the pointer as a floating copy, so its row only marks the spot.
+          sortable?.isDragging && props.showStatus && "opacity-40",
         )}
       >
         <Tooltip disabled={isRenaming || sortable?.isDragging}>
@@ -1528,6 +1537,8 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
       className={cn(
         "list-none py-0.5 [content-visibility:auto] [contain-intrinsic-size:auto_66px]",
         sortable?.isDragging && "relative z-20",
+        // The lead's workers travel with it, so they need a surface over the rows they pass.
+        sortable?.isDragging && props.workers && "rounded-md bg-sidebar shadow-lg",
       )}
     >
       <Tooltip disabled={isRenaming || snoozeMenuOpen || sortable?.isDragging}>
@@ -1731,6 +1742,10 @@ const SidebarThreadRow = memo(function SidebarThreadRow(props: SidebarThreadRowP
         </TooltipTrigger>
         {detailsTooltip}
       </Tooltip>
+      {props.workers ? (
+        // Pressing a worker must not start dragging the lead around it.
+        <div onPointerDown={(event) => event.stopPropagation()}>{props.workers}</div>
+      ) : null}
     </li>
   );
 });

@@ -17,6 +17,7 @@ import { Atom } from "effect/reactivity";
 import * as Schema from "effect/Schema";
 import {
   DndContext,
+  DragOverlay,
   useSensor,
   useSensors,
   type AutoScrollOptions,
@@ -26,6 +27,7 @@ import {
   type Modifier,
 } from "@dnd-kit/core";
 import { SortableContext } from "@dnd-kit/sortable";
+import { createPortal } from "react-dom";
 import { restrictToFirstScrollableAncestor, restrictToVerticalAxis } from "@dnd-kit/modifiers";
 import {
   canSnooze,
@@ -224,6 +226,7 @@ import {
 } from "./Sidebar.logic";
 import {
   createSidebarCollisionDetection,
+  createSidebarNestTracker,
   createSidebarSortingStrategy,
   restrictBelowSidebarLabel,
 } from "./Sidebar.drag";
@@ -1056,6 +1059,22 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     reportFailure: false,
   });
   const createThread = useOrchestrationCommand(threadEnvironment.create, { reportFailure: false });
+  const setThreadLead = async (thread: EnvironmentThreadShell, leadId: ThreadId | null) => {
+    const result = await updateThreadMetadata({
+      environmentId: thread.environmentId,
+      input: { threadId: thread.id, launchedByThreadId: leadId },
+    });
+    if (result._tag === "Failure" && !isAtomCommandInterrupted(result)) {
+      const error = squashAtomCommandFailure(result);
+      toastManager.add(
+        stackedThreadToast({
+          type: "error",
+          title: leadId === null ? "Could not remove from lead" : "Could not move under lead",
+          description: error instanceof Error ? error.message : "An error occurred.",
+        }),
+      );
+    }
+  };
   const { copyToClipboard: copyPathToClipboard } = useCopyToClipboard<{ path: string }>({
     onError: (error) => {
       toastManager.add(
@@ -1167,6 +1186,10 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const dragSensorRef = useRef<SidebarPointerSensor | null>(null);
   const contextDragKeyRef = useRef<string | null>(null);
   const dragScrollRef = useRef<{ readonly viewport: Element; readonly top: number } | null>(null);
+  const [nestTargetKey, setNestTargetKey] = useState<string | null>(null);
+  // Worker rows sit outside the sortable list, so their drags need their own state.
+  const [draggedWorkerKey, setDraggedWorkerKey] = useState<string | null>(null);
+  const [nestTracker] = useState(() => createSidebarNestTracker(setNestTargetKey));
   const [actionSweep, setActionSweep] = useState<{
     action: SidebarSweepAction;
     keys: ReadonlySet<string>;
@@ -1478,6 +1501,11 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     keepEmptyFolders: (group) =>
       scopedProjectGroups.length > 0 || (group.pinned && !group.archived),
   });
+  const leadKeyByWorkerKey = new Map(
+    [...workersByLeadKey].flatMap(([leadKey, workers]) =>
+      workers.map((worker) => [threadShellKey(worker), leadKey] as const),
+    ),
+  );
 
   // Ranked across environments as the palette ranks them, so one
   // environment's list does not sit above another's better matches; rows
@@ -1916,6 +1944,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     dragSensorRef.current = null;
     contextDragKeyRef.current = null;
     dragScrollRef.current = null;
+    // Only the ring; the drop handler, which runs after this, still reads the target.
+    setNestTargetKey(null);
+    setDraggedWorkerKey(null);
     endThreadContextDrag();
     if (started) {
       listMotionRef.current?.release();
@@ -2094,8 +2125,12 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const handleThreadDragStart = (event: DragStartEvent) => {
     const activeKey = String(event.active.id);
     contextDragKeyRef.current = activeKey;
+    nestTracker.reset();
     const activeSection = sectionByThreadKey.get(activeKey);
-    if (activeSection === undefined) return;
+    if (activeSection === undefined) {
+      if (leadKeyByWorkerKey.has(activeKey)) setDraggedWorkerKey(activeKey);
+      return;
+    }
     listMotionRef.current?.suspend();
     const list = threadListRef.current;
     const viewport = list?.closest('[data-slot="scroll-area-viewport"]');
@@ -2245,11 +2280,41 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
   const draggedThreadKey = dragState?.activeKey;
   const draggedFromSection = dragState?.activeSection;
   const dragActivationY = dragState?.activationY;
+  // The top-level Active and Pinned cards a dragged thread can join as a worker.
+  const nestTargetsFor = (source: EnvironmentThreadShell, sourceKey: string) => {
+    const targets = new Set<string>();
+    for (const item of sidebarListItems) {
+      if (item.kind !== "thread" || item.key === sourceKey) continue;
+      if (item.section !== "active" && item.section !== "pinned") continue;
+      const lead = threadByKey.get(item.key);
+      // A pinned worker shows in Pinned, so dropping it on its own lead brings it under the lead.
+      if (
+        lead?.environmentId === source.environmentId &&
+        (lead.id !== source.lineage.launchedByThreadId || source.pinnedAt != null)
+      ) {
+        targets.add(item.key);
+      }
+    }
+    return targets;
+  };
   const dndCollisionDetection = (() => {
+    const draggedWorker = draggedWorkerKey === null ? undefined : threadByKey.get(draggedWorkerKey);
+    if (draggedWorker !== undefined && draggedWorkerKey !== null) {
+      return createSidebarCollisionDetection(() => true, {
+        nest: { targets: nestTargetsFor(draggedWorker, draggedWorkerKey), tracker: nestTracker },
+      });
+    }
     if (draggedThreadKey === undefined || draggedFromSection === undefined)
       return createSidebarCollisionDetection(() => true);
     const source = threadByKey.get(draggedThreadKey);
     if (source === undefined) return createSidebarCollisionDetection(() => false);
+    // No leads in leads: a thread with workers never joins another lead.
+    const nestTargets =
+      !isContextDrag &&
+      (draggedFromSection === "active" || draggedFromSection === "pinned") &&
+      !workersByLeadKey.has(draggedThreadKey)
+        ? nestTargetsFor(source, draggedThreadKey)
+        : new Set<string>();
     return createSidebarCollisionDetection(
       (id) => {
         const target = resolveSidebarDropTarget(sidebarListItems, draggedThreadKey, id);
@@ -2275,12 +2340,60 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       {
         items: sidebarListItems,
         activationY: dragActivationY ?? null,
+        nest: { targets: nestTargets, tracker: nestTracker },
       },
     );
   })();
   const handleThreadDragEnd = (event: DragEndEvent) => {
     if (projectFolders !== null) return;
     const activeKey = String(event.active.id);
+    const nestKey = nestTracker.targetKey();
+    if (nestKey !== null) {
+      const worker = threadByKey.get(activeKey);
+      const lead = threadByKey.get(nestKey);
+      if (worker === undefined || lead === undefined || !checkThreadOperations([worker])) return;
+      if (!expandedLeadKeys.includes(nestKey)) toggleLead(nestKey);
+      void (async () => {
+        if (worker.lineage.launchedByThreadId !== lead.id) await setThreadLead(worker, lead.id);
+        // A pinned worker stays in Pinned, so joining a lead unpins it.
+        if (worker.pinnedAt == null) return;
+        const unpinned = await unpinThread(scopeThreadRef(worker.environmentId, worker.id));
+        if (unpinned._tag === "Failure" && !isAtomCommandInterrupted(unpinned)) {
+          const error = squashAtomCommandFailure(unpinned);
+          toastManager.add(
+            stackedThreadToast({
+              type: "error",
+              title: "Failed to unpin thread",
+              description: error instanceof Error ? error.message : "An error occurred.",
+            }),
+          );
+        }
+      })();
+      return;
+    }
+    const workerLeadKey = leadKeyByWorkerKey.get(activeKey);
+    if (workerLeadKey !== undefined) {
+      // A worker dropped in the list but outside its lead's group leaves the lead.
+      const worker = threadByKey.get(activeKey);
+      const start = event.activatorEvent;
+      if (worker === undefined || !(start instanceof PointerEvent)) return;
+      const x = start.clientX + event.delta.x;
+      const y = start.clientY + event.delta.y;
+      const contains = (element: Element | null | undefined) => {
+        const rect = element?.getBoundingClientRect();
+        return !!rect && x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom;
+      };
+      const escaped = CSS.escape(workerLeadKey);
+      const inGroup = [
+        ...document.querySelectorAll(
+          `[data-thread-item="${escaped}"], [data-lead-workers="${escaped}"]`,
+        ),
+      ].some(contains);
+      if (!inGroup && contains(threadListRef.current) && checkThreadOperations([worker])) {
+        void setThreadLead(worker, null);
+      }
+      return;
+    }
     const activeSection = sectionByThreadKey.get(activeKey);
     const target =
       event.over === null
@@ -2871,6 +2984,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               ),
               canTurnIntoProject: canTurnThreadIntoProject(threadRef),
               canRename: !fromSearch,
+              isWorker: thread.lineage.launchedByThreadId !== undefined,
               supports: {
                 settlement: configLoaded,
                 autoSettleOptOut: supportsAutoSettleOptOut,
@@ -2937,6 +3051,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
             }
             return;
           }
+          case "leave-lead":
+            await setThreadLead(thread, null);
+            return;
           case "new-worker": {
             // Shares the lead's workspace and settings, like a worker an agent launches.
             const workerRef = scopeThreadRef(thread.environmentId, newThreadId());
@@ -3724,7 +3841,6 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             sortableId={threadKey}
                             contextDrag={isContextDrag}
                             sortableDisabled={
-                              worker ||
                               renamingThreadKey === threadKey ||
                               !draggableThreadKeys.has(threadKey) ||
                               optimisticDrop !== null
@@ -3819,6 +3935,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             onFileDropThreads={handleThreadFileDrop}
                             showStatus={worker}
                             isLead={!worker && workersByLeadKey.has(threadKey)}
+                            workers={worker || folderRow ? undefined : leadWorkersBlock(threadKey)}
+                            isNestTarget={nestTargetKey === threadKey}
                           />
                         );
                       };
@@ -3837,53 +3955,48 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                           onDraftContextMenu={handleDraftContextMenu}
                         />,
                       ];
-                      const pushLeadWorkers = (leadKey: string) => {
+                      const leadWorkersBlock = (leadKey: string) => {
                         const leadWorkers = workersByLeadKey.get(leadKey);
-                        if (leadWorkers !== undefined) {
-                          const expanded = expandedLeadKeys.includes(leadKey);
-                          // A folded lead still shows the worker that is open.
-                          const openWorkers = expanded
-                            ? []
-                            : (visibleWorkersByLeadKey.get(leadKey) ?? []);
-                          items.push(
-                            <li key={`${leadKey}:workers`} className="list-none ps-4">
-                              <Collapsible open={expanded}>
-                                <CollapsiblePanel>
-                                  <div className="flex h-6 items-center gap-2 px-2 text-xs text-sidebar-muted-foreground/60">
-                                    <span className="shrink-0 tabular-nums">
-                                      {`${leadWorkers.length} ${leadWorkers.length === 1 ? "worker" : "workers"}`}
-                                    </span>
-                                    <span
-                                      aria-hidden
-                                      className="h-px flex-1 bg-sidebar-border/60"
-                                    />
-                                  </div>
-                                  <SidebarWorkerList
-                                    orderKey={leadWorkers.map(threadShellKey).join("\n")}
-                                  >
-                                    {leadWorkers.map((worker) =>
-                                      renderThreadRow(worker, "active", undefined, true),
-                                    )}
-                                  </SidebarWorkerList>
-                                </CollapsiblePanel>
-                              </Collapsible>
-                              {openWorkers.length > 0 ? (
-                                <ul>
-                                  {openWorkers.map((worker) =>
+                        if (leadWorkers === undefined) return undefined;
+                        const expanded = expandedLeadKeys.includes(leadKey);
+                        // A folded lead still shows the worker that is open.
+                        const openWorkers = expanded
+                          ? []
+                          : (visibleWorkersByLeadKey.get(leadKey) ?? []);
+                        return (
+                          <div className="ps-4" data-lead-workers={leadKey}>
+                            <Collapsible open={expanded}>
+                              <CollapsiblePanel>
+                                <div className="flex h-6 items-center gap-2 px-2 text-xs text-sidebar-muted-foreground/60">
+                                  <span className="shrink-0 tabular-nums">
+                                    {`${leadWorkers.length} ${leadWorkers.length === 1 ? "worker" : "workers"}`}
+                                  </span>
+                                  <span aria-hidden className="h-px flex-1 bg-sidebar-border/60" />
+                                </div>
+                                <SidebarWorkerList
+                                  orderKey={leadWorkers.map(threadShellKey).join("\n")}
+                                >
+                                  {leadWorkers.map((worker) =>
                                     renderThreadRow(worker, "active", undefined, true),
                                   )}
-                                </ul>
-                              ) : null}
-                            </li>,
-                          );
-                        }
+                                </SidebarWorkerList>
+                              </CollapsiblePanel>
+                            </Collapsible>
+                            {openWorkers.length > 0 ? (
+                              <ul>
+                                {openWorkers.map((worker) =>
+                                  renderThreadRow(worker, "active", undefined, true),
+                                )}
+                              </ul>
+                            ) : null}
+                          </div>
+                        );
                       };
                       for (const item of sidebarListItems) {
                         if (item.kind === "thread") {
                           // Folders draw active rows in their own place below.
                           if (projectFolders !== null && item.section === "active") continue;
                           items.push(renderThreadRow(threadByKey.get(item.key)!, item.section));
-                          pushLeadWorkers(item.key);
                           continue;
                         }
                         if (projectFolders !== null && item.marker === "active-placeholder") {
@@ -3907,9 +4020,17 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                                   sidebarFolderRowId(folder.group.projectKey),
                                 ),
                               );
-                              pushLeadWorkers(
-                                scopedThreadKey(scopeThreadRef(thread.environmentId, thread.id)),
+                              const leadKey = scopedThreadKey(
+                                scopeThreadRef(thread.environmentId, thread.id),
                               );
+                              const workers = leadWorkersBlock(leadKey);
+                              if (workers !== undefined) {
+                                items.push(
+                                  <li key={`${leadKey}:workers`} className="list-none">
+                                    {workers}
+                                  </li>,
+                                );
+                              }
                             }
                           }
                           continue;
@@ -4023,6 +4144,22 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
                             );
                             break;
                         }
+                      }
+                      const draggedWorker =
+                        draggedWorkerKey === null ? undefined : threadByKey.get(draggedWorkerKey);
+                      if (draggedWorker !== undefined) {
+                        // The worker row stays clipped in its group, so a floating copy follows the pointer.
+                        items.push(
+                          createPortal(
+                            <DragOverlay dropAnimation={null}>
+                              <ul className="rounded-md bg-sidebar shadow-lg">
+                                {renderThreadRow(draggedWorker, "active", undefined, true)}
+                              </ul>
+                            </DragOverlay>,
+                            document.body,
+                            "worker-drag-overlay",
+                          ),
+                        );
                       }
                       return items;
                     })()}
