@@ -8,6 +8,7 @@ export type ThreadActionMenuId =
   | "find"
   | "new-thread-on-branch"
   | "new-worker"
+  | "leave-lead"
   | "filter-by-project"
   | "turn-into-project"
   | "project-settings"
@@ -124,6 +125,8 @@ export interface ThreadActionMenuState {
   readonly canShareWithGuest?: boolean;
   /** A No project thread with its own folder, on a server that can promote it. */
   readonly canTurnIntoProject?: boolean;
+  /** Set for a worker, so it can leave its lead. */
+  readonly isWorker?: boolean;
 }
 
 /** Local navigation, read markers, and copying remain available to read-only clients. */
@@ -160,6 +163,9 @@ export function buildThreadActionMenuItems(
         ]
       : []),
     { id: "new-worker", label: "New worker thread", icon: "message-square-plus" },
+    ...(state.isWorker
+      ? [{ id: "leave-lead" as const, label: "Remove from lead", icon: "folder-tree" }]
+      : []),
     ...(state.supports.pinning
       ? [
           state.isPinned

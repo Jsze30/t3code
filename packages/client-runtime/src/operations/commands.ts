@@ -150,6 +150,7 @@ export interface UpdateThreadMetadataInput extends ThreadCommandInput {
   readonly regenerateTitle?: boolean;
   readonly linkedPullRequest?: ThreadLinkedPullRequest | null;
   readonly expectedEmpty?: boolean;
+  readonly launchedByThreadId?: ThreadId | null;
 }
 
 export interface SetThreadRuntimeModeInput extends ThreadCommandInput {
@@ -701,7 +702,8 @@ export const updateThreadMetadata = Effect.fn("EnvironmentCommands.updateThreadM
       input.worktreePath !== undefined ||
       input.regenerateTitle !== undefined ||
       input.linkedPullRequest !== undefined ||
-      input.limitRecovery !== undefined
+      input.limitRecovery !== undefined ||
+      input.launchedByThreadId !== undefined
     ) {
       result = yield* dispatch({
         type: "thread.metadata.update",
@@ -716,6 +718,9 @@ export const updateThreadMetadata = Effect.fn("EnvironmentCommands.updateThreadM
         ...(input.linkedPullRequest === undefined
           ? {}
           : { linkedPullRequest: input.linkedPullRequest }),
+        ...(input.launchedByThreadId === undefined
+          ? {}
+          : { launchedByThreadId: input.launchedByThreadId }),
       });
     }
     if (input.modelSelection !== undefined) {

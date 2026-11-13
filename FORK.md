@@ -63,6 +63,9 @@ Sidebar:
 - Settling a lead asks whether to settle its workers too.
 - Right-clicking a card offers New worker thread, which opens a worker of that thread in the same workspace and settings.
 - Standalone leads (`standalone: true` on launch) are not workers of the thread that launched them.
+- Dropping a thread on the middle of another card makes it that card's worker (unpinning it if pinned).
+  Dragging a worker out of its lead, or right-clicking it and picking Remove from lead, makes it a normal thread again.
+  Dragging a lead carries its workers with it.
 - Worker rows are slim and say Working or Done, and finished workers rise above running ones.
 - Lead cards have a network icon.
 - Cards have no branch line (branch, diff counts and provider icons).

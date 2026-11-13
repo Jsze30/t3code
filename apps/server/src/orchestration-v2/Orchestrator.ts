@@ -1,6 +1,7 @@
 import type {
   OrchestrationV2ThreadLinkMetadata,
   GuestShareId,
+  OrchestrationV2AppThreadLineage,
   OrchestrationV2SearchThreadInput,
   OrchestrationV2SearchThreadResult,
   OrchestrationV2ThreadHistoryPage,
@@ -559,6 +560,14 @@ export interface OrchestratorV2Shape {
 export class OrchestratorV2 extends Context.Service<OrchestratorV2, OrchestratorV2Shape>()(
   "t3/orchestration-v2/Orchestrator/OrchestratorV2",
 ) {}
+
+function withLaunchedBy(
+  lineage: OrchestrationV2AppThreadLineage,
+  launchedByThreadId: ThreadId | null,
+): OrchestrationV2AppThreadLineage {
+  const { launchedByThreadId: _previous, ...rest } = lineage;
+  return launchedByThreadId === null ? rest : { ...rest, launchedByThreadId };
+}
 
 /** Run ordinals can skip values: a queued run moves past newer runs when it starts. */
 function nextRunOrdinal(projection: Pick<OrchestrationV2ThreadProjection, "runs">): number {
@@ -4457,6 +4466,18 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
         cause: `Thread ${command.threadId} branch changed before the metadata update could be applied.`,
       });
     }
+    if (command.type === "thread.metadata.update" && command.launchedByThreadId != null) {
+      const lead = yield* projectionStore
+        .getThread(command.launchedByThreadId)
+        .pipe(mapDispatchError(command));
+      if (lead.id === thread.id || lead.deletedAt !== null) {
+        return yield* new OrchestratorDispatchError({
+          commandId: command.commandId,
+          commandType: command.type,
+          cause: `Thread ${command.launchedByThreadId} cannot lead thread ${command.threadId}.`,
+        });
+      }
+    }
     if (command.type === "thread.metadata.update" && command.expectedEmpty === true) {
       const records = yield* projectionStore
         .getThreadRecords(command.threadId, ["runs"])
@@ -5086,6 +5107,9 @@ const makeOrchestrator = Effect.fn("orchestrationV2.Orchestrator.layer")(functio
                 : {}),
             ...(command.branch === undefined ? {} : { branch: command.branch }),
             ...(command.worktreePath === undefined ? {} : { worktreePath: command.worktreePath }),
+            ...(command.launchedByThreadId === undefined
+              ? {}
+              : { lineage: withLaunchedBy(thread.lineage, command.launchedByThreadId) }),
             ...(command.linkedPullRequest === undefined
               ? {}
               : {

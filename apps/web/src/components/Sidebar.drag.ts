@@ -19,6 +19,9 @@ const isShelfHeader = (item: SidebarListItem | undefined) =>
     item.marker === "snoozed-header" ||
     item.marker === "settled-header");
 
+const isCardSection = (section: SidebarSection) =>
+  section === "pinned" || section === "active" || section === "working";
+
 export function restrictBelowSidebarLabel(
   { transform, containerNodeRect, draggingNodeRect }: Parameters<Modifier>[0],
   offset: number,
@@ -28,11 +31,34 @@ export function restrictBelowSidebarLabel(
   return transform.y < minimumY ? { ...transform, y: minimumY } : transform;
 }
 
+/**
+ * Tracks the lead a dragged thread would join. dnd-kit reports collisions during render,
+ * so the target is published on the next tick.
+ */
+export function createSidebarNestTracker(publish: (targetKey: string | null) => void) {
+  let targetKey: string | null = null;
+  return {
+    reset() {
+      targetKey = null;
+      publish(null);
+    },
+    targetKey: () => targetKey,
+    report(key: string | null) {
+      if (key === targetKey) return;
+      targetKey = key;
+      queueMicrotask(() => publish(targetKey));
+    },
+  };
+}
+type SidebarNestTracker = ReturnType<typeof createSidebarNestTracker>;
+
 export function createSidebarCollisionDetection(
   isValidTarget: (id: string) => boolean,
   options: {
     items?: readonly SidebarListItem[];
     activationY?: number | null;
+    /** Dropping onto the middle of a target row makes the dragged thread its worker. */
+    nest?: { readonly targets: ReadonlySet<string>; readonly tracker: SidebarNestTracker };
   } = {},
 ): CollisionDetection {
   const validity = new Map<string, boolean>();
@@ -40,8 +66,28 @@ export function createSidebarCollisionDetection(
   let previousPointerY = options.activationY;
   let boundarySection: "pinned" | "active" | undefined;
   return (args) => {
-    let collisions = closestCenter(args);
     const pointer = args.pointerCoordinates;
+    if (options.nest && pointer) {
+      // Rows at rest, without the sorting shift: over a row's middle the list returns to that
+      // layout, so the row sits under the pointer instead of sliding away to make room.
+      const target = args.droppableContainers.find((container) => {
+        const node = container.node.current;
+        if (!options.nest!.targets.has(String(container.id)) || !node?.offsetParent) return false;
+        // offsetTop ignores the transforms that sorting and list motion put on the row.
+        const top = node.offsetParent.getBoundingClientRect().top + node.offsetTop;
+        const rect = node.getBoundingClientRect();
+        const inset = Math.min(10, rect.height / 5);
+        return (
+          pointer.x >= rect.left &&
+          pointer.x <= rect.right &&
+          pointer.y >= top + inset &&
+          pointer.y <= top + rect.height - inset
+        );
+      });
+      options.nest.tracker.report(target === undefined ? null : String(target.id));
+      if (target !== undefined) return [{ id: args.active.id }];
+    }
+    let collisions = closestCenter(args);
     const items = options.items;
     const source = items?.find((item) => item.kind === "thread" && item.key === args.active.id);
     const boundary = args.droppableContainers
@@ -122,6 +168,7 @@ export function createSidebarSortingStrategy(input: {
       settled: [],
     };
     let cardHeight = input.cardHeight;
+    let shortestCard = Infinity;
     let slimHeight = input.slimHeight;
     let headerScale: number | undefined;
     for (const [index, item] of items.entries()) {
@@ -132,11 +179,13 @@ export function createSidebarSortingStrategy(input: {
         }
         continue;
       }
-      if (item.section === "pinned" || item.section === "active" || item.section === "working")
-        cardHeight ??= rects[index]?.height;
+      // A lead's row also holds its workers, so the shortest card is the plain card height.
+      if (isCardSection(item.section))
+        shortestCard = Math.min(shortestCard, rects[index]?.height ?? Infinity);
       else slimHeight ??= rects[index]?.height;
       if (item.key !== active.key) groups[item.section].push(item);
     }
+    if (Number.isFinite(shortestCard)) cardHeight ??= shortestCard;
     const scale =
       slimHeight !== undefined ? slimHeight / 36 : (headerScale ?? (cardHeight ?? 82) / 82);
     cardHeight ??= 82 * scale;
@@ -205,7 +254,9 @@ export function createSidebarSortingStrategy(input: {
         : item.kind === "marker" && item.marker.endsWith("placeholder")
           ? slimHeight
           : moved
-            ? fallback
+            ? isCardSection(active.section) && isCardSection(target.section)
+              ? (rect?.height ?? fallback)
+              : fallback
             : (rect?.height ?? fallback);
     });
     const firstShelf = items.findIndex(isShelfHeader);
