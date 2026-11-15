@@ -92,6 +92,8 @@ App and server:
 - Installs as "T3 Code (Jason)" with its data in `~/.t3-jason`, signed with a fixed local certificate.
 - The T3 Connect avatar menu in Settings offers Switch to the other of the last two Google accounts signed in on this Mac.
   It signs out and goes straight to Google sign-in for that account; on the web it opens sign-in with the email filled in.
+- Signing in to T3 Connect adds that account's other computers automatically, without the setup popup.
+  A computer you remove stays removed until you switch accounts.
 - Agents and `!` commands do not inherit `ELECTRON_RUN_AS_NODE` from the desktop app.
 - Tests expect this build's name, data folder and defaults.
 
