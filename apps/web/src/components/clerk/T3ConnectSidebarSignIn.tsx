@@ -105,7 +105,7 @@ function ConfiguredT3ConnectSidebarAvatar({
       <UserButton
         appearance={{
           elements: {
-            avatarBox: "size-4",
+            avatarBox: "size-4.5",
             // Clerk's unlayered trigger reset (padding, radius, background) beats layered utilities.
             // Sized like the sidebar's icon buttons beside it.
             userButtonTrigger:
