@@ -1,7 +1,7 @@
 import { UserButton, useAuth, useClerk, useUser } from "@clerk/react";
-import { T, useMessages } from "gt-react";
-import { ArrowLeftRightIcon, LogInIcon, RotateCwIcon } from "lucide-react";
-import { useEffect, useEffectEvent } from "react";
+import { T, useGT, useMessages } from "gt-react";
+import { ArrowLeftRightIcon, LogInIcon, RotateCwIcon, SettingsIcon } from "lucide-react";
+import { type ReactNode, useEffect, useEffectEvent } from "react";
 
 import { hasCloudPublicConfig } from "../../cloud/publicConfig";
 import { isElectron } from "../../env";
@@ -24,15 +24,26 @@ export function T3ConnectSidebarSignIn() {
   return <ConfiguredT3ConnectSidebarSignIn />;
 }
 
-export function T3ConnectSidebarAvatar() {
-  if (!hasCloudPublicConfig()) return null;
-
-  return <ConfiguredT3ConnectSidebarAvatar />;
+interface T3ConnectSidebarAvatarProps {
+  readonly onOpenSettings: () => void;
+  /** Shown instead of the avatar while signed out. */
+  readonly fallback: ReactNode;
 }
 
-function ConfiguredT3ConnectSidebarAvatar() {
+/** The sidebar's Settings button: the T3 Connect avatar, whose menu starts with Settings. */
+export function T3ConnectSidebarAvatar(props: T3ConnectSidebarAvatarProps) {
+  if (!hasCloudPublicConfig()) return props.fallback;
+
+  return <ConfiguredT3ConnectSidebarAvatar {...props} />;
+}
+
+function ConfiguredT3ConnectSidebarAvatar({
+  onOpenSettings,
+  fallback,
+}: T3ConnectSidebarAvatarProps) {
   const { isLoaded, isSignedIn } = useAuth();
   const m = useMessages();
+  const gt = useGT();
   const { user } = useUser();
   const clerk = useClerk();
   const [switchAccounts, setSwitchAccounts] = useLocalStorage(
@@ -51,7 +62,7 @@ function ConfiguredT3ConnectSidebarAvatar() {
     if (googleEmail) rememberAccount(googleEmail);
   }, [googleEmail]);
 
-  if (!isLoaded || !isSignedIn) return null;
+  if (!isLoaded || !isSignedIn) return fallback;
 
   const switchTarget = switchAccountTarget(switchAccounts, googleEmail);
   const switchTo = (email: string) => {
@@ -81,38 +92,58 @@ function ConfiguredT3ConnectSidebarAvatar() {
     });
   };
 
+  const settingsAction = (
+    <UserButton.Action
+      label={gt("Settings")}
+      labelIcon={<SettingsIcon className="size-4" />}
+      onClick={onOpenSettings}
+    />
+  );
+
   return (
-    <UserButton
-      appearance={{
-        elements: {
-          avatarBox: "size-7",
-          // Clerk's unlayered trigger reset (padding, radius, background) beats layered utilities.
-          userButtonTrigger: "mb-1! rounded-lg! p-1! hover:bg-sidebar-row-hover!",
-        },
-      }}
-    >
-      {T3_CONNECT_ACCOUNT_PAGES.map((page) => (
-        <UserButton.UserProfilePage
-          key={page.url}
-          label={m(page.label)}
-          labelIcon={page.icon}
-          url={page.url}
-        >
-          {page.content}
-        </UserButton.UserProfilePage>
-      ))}
-      {switchTarget ? (
-        <UserButton.MenuItems>
-          <UserButton.Action label="manageAccount" />
-          <UserButton.Action
-            label={`Switch to ${switchTarget}`}
-            labelIcon={<ArrowLeftRightIcon className="size-4" />}
-            onClick={() => switchTo(switchTarget)}
-          />
-          <UserButton.Action label="signOut" />
-        </UserButton.MenuItems>
-      ) : null}
-    </UserButton>
+    <SidebarMenuItem className="shrink-0">
+      <UserButton
+        appearance={{
+          elements: {
+            avatarBox: "size-4",
+            // Clerk's unlayered trigger reset (padding, radius, background) beats layered utilities.
+            // Sized like the sidebar's icon buttons beside it.
+            userButtonTrigger:
+              "size-8! justify-center! rounded-[var(--control-radius)]! p-0! hover:bg-sidebar-row-hover!",
+          },
+        }}
+      >
+        {T3_CONNECT_ACCOUNT_PAGES.map((page) => (
+          <UserButton.UserProfilePage
+            key={page.url}
+            label={m(page.label)}
+            labelIcon={page.icon}
+            url={page.url}
+          >
+            {page.content}
+          </UserButton.UserProfilePage>
+        ))}
+        {/* Clerk reads these children directly, so each menu is spelled out in full. */}
+        {switchTarget ? (
+          <UserButton.MenuItems>
+            {settingsAction}
+            <UserButton.Action label="manageAccount" />
+            <UserButton.Action
+              label={`Switch to ${switchTarget}`}
+              labelIcon={<ArrowLeftRightIcon className="size-4" />}
+              onClick={() => switchTo(switchTarget)}
+            />
+            <UserButton.Action label="signOut" />
+          </UserButton.MenuItems>
+        ) : (
+          <UserButton.MenuItems>
+            {settingsAction}
+            <UserButton.Action label="manageAccount" />
+            <UserButton.Action label="signOut" />
+          </UserButton.MenuItems>
+        )}
+      </UserButton>
+    </SidebarMenuItem>
   );
 }
 

@@ -1,7 +1,7 @@
 import { ArrowLeftIcon, ArrowRightIcon, ChartNoAxesColumnIcon, SettingsIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { T, useGT } from "gt-react";
-import { memo } from "react";
+import { lazy, memo, Suspense } from "react";
 import { Link, useLocation, useNavigate } from "@tanstack/react-router";
 
 import { useAtomValue } from "@effect/atom-react";
@@ -42,6 +42,12 @@ import { SidebarProviderUpdatePill } from "./SidebarProviderUpdatePill";
 import { SidebarUpdateArchitectureWarning, SidebarUpdatePill } from "./SidebarUpdatePill";
 import { PullRequestGlyph } from "~/components/pullRequest/pullRequestIcons";
 import { observeResize } from "~/lib/observeResize";
+
+const T3ConnectSidebarAvatar = lazy(() =>
+  import("../clerk/T3ConnectSidebarSignIn").then((module) => ({
+    default: module.T3ConnectSidebarAvatar,
+  })),
+);
 
 export const SidebarChromeHeader = memo(function SidebarChromeHeader({
   isElectron,
@@ -256,6 +262,14 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
     void navigate({ to: "/settings" });
   };
 
+  const settingsItem = (
+    <SidebarUtilityItem
+      icon={<SettingsIcon />}
+      label={gt("Settings")}
+      onClick={handleSettingsClick}
+    />
+  );
+
   const handleUsageClick = () => {
     if (isMobile) {
       setOpenMobile(false);
@@ -281,11 +295,9 @@ const SidebarUtilityMenu = memo(function SidebarUtilityMenu() {
         </SidebarMenuItem>
       ) : (
         <>
-          <SidebarUtilityItem
-            icon={<SettingsIcon />}
-            label={gt("Settings")}
-            onClick={handleSettingsClick}
-          />
+          <Suspense fallback={settingsItem}>
+            <T3ConnectSidebarAvatar onOpenSettings={handleSettingsClick} fallback={settingsItem} />
+          </Suspense>
           {pullRequestsSupported ? (
             <SidebarUtilityItem
               icon={<PullRequestGlyph.pullRequest />}
