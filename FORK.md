@@ -71,6 +71,7 @@ Sidebar:
 - Cards have no branch line (branch, diff counts and provider icons).
 - Pinned threads sit under Pinned and Active dividers instead of showing a pin icon.
 - Next and previous thread wrap around at the ends.
+- With threads on more than one environment, a header button filters the list to one environment.
 - Ctrl+` opens the first thread that finished since you last opened it, so pressing it again works through them all.
   With none left, it flips back to the thread you had open before.
 
@@ -79,7 +80,7 @@ Chat:
 - Esc stops the running turn, unless a popup is open.
 - `!command` in the composer turns into a chip, runs when the message is sent, and attaches its output for Claude and Codex threads.
 - Cmd+Shift+R restarts the agent session, so the desktop menu's Force Reload has no shortcut.
-- New threads start with the thread panel closed.
+- New threads start with the thread panel closed, and the header has no thread details button (its shortcut still works).
 - Every model defaults to high effort and fast mode when it offers them.
 - Closing the right panel with a browser tab open just closes it, instead of floating the browser over chat.
 - Cmd+U opens the usage page and also closes it, going back to where you were.
