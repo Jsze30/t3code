@@ -89,6 +89,7 @@ Chat:
   Saving only overwrites existing files, and never touches T3's own data or git folders.
 - In the right panel's editor, Tab follows the file's own indent size (4 for Python), and Enter keeps the indent, adding a level after a `:` (Python) or an opening bracket and stepping back after `return`.
 - The right panel remembers where you were scrolled in each file when you switch threads and come back.
+- Script files (Python, JS/TS, shell, Ruby, Go and a few more) get a play button in the right panel that saves the file and runs it in the terminal.
 
 App and server:
 

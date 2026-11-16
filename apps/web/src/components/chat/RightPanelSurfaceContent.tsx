@@ -61,6 +61,7 @@ interface RightPanelFileProps {
   readonly pendingSurfaceIds: ReadonlySet<string>;
   readonly onOpenFile: (relativePath: string) => void;
   readonly onPendingChange: (relativePath: string, pending: boolean) => void;
+  readonly onRunInTerminal?: ((command: string) => void) | undefined;
 }
 
 export function RightPanelSurfaceContent(props: {
@@ -302,6 +303,7 @@ export function RightPanelSurfaceContent(props: {
             onPendingChange={files.onPendingChange}
             selectedFilePending={surface.kind === "file" && files.pendingSurfaceIds.has(surface.id)}
             workspaceMutationId={props.workspaceMutationId}
+            onRunInTerminal={files.onRunInTerminal}
           />
         </Suspense>
       );
