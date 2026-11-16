@@ -58,6 +58,7 @@ import {
   useEffectEvent,
   useRef,
   useState,
+  type CSSProperties,
   type KeyboardEvent as ReactKeyboardEvent,
 } from "react";
 
@@ -98,6 +99,7 @@ import { BrowserDocumentFrame, isPdfPreviewFile } from "./BrowserDocumentFrame";
 import { DelimitedTablePreview } from "./DelimitedTablePreview";
 import { PreviewImage } from "./PreviewImage";
 import FileBrowserPanel from "./FileBrowserPanel";
+import { detectIndentSize, installFileEditorIndent } from "./fileEditorIndent";
 import { FileExplorerPane } from "./FileExplorerPane";
 import { FileBreadcrumbs } from "./FileBreadcrumbs";
 import { breadcrumbPathOf, retainedBreadcrumbTrail, trailChildOf } from "./filePath";
@@ -617,7 +619,11 @@ interface FileRevealState {
   restoreFrameId: number | null;
 }
 
+/** Code view offsets by file, kept across threads so switching back lands where you were. */
+const savedFileScrollTops = new Map<string, number>();
+
 function useFileLineReveal(
+  cwd: string,
   relativePath: string | null,
   revealLine: number | null,
   revealRequestId: number,
@@ -626,18 +632,19 @@ function useFileLineReveal(
 
   return (fileContainer, instance, phase) => {
     if (relativePath === null) return;
+    const scrollKey = `${cwd}\0${relativePath}`;
 
-    const existingState = revealStatesByPath.get(relativePath);
+    const existingState = revealStatesByPath.get(scrollKey);
     const state: FileRevealState = existingState ?? {
       frameId: null,
       cancelGuard: null,
       handledRequestId: null,
       latestRequestId: null,
-      scrollTop: 0,
+      scrollTop: savedFileScrollTops.get(scrollKey) ?? 0,
       scrollContainer: null,
       restoreFrameId: null,
     };
-    if (!existingState) revealStatesByPath.set(relativePath, state);
+    if (!existingState) revealStatesByPath.set(scrollKey, state);
 
     const cancelPendingReveal = () => {
       if (state.frameId !== null) {
@@ -658,6 +665,7 @@ function useFileLineReveal(
       const restorePending = state.restoreFrameId !== null;
       cancelPendingReveal();
       if (scrollContainer && !restorePending) state.scrollTop = scrollContainer.scrollTop;
+      savedFileScrollTops.set(scrollKey, state.scrollTop);
       state.scrollContainer = null;
       return;
     }
@@ -1079,6 +1087,14 @@ function EditableFileSurface({
       onDismiss: () => setSelectedRange(null),
     });
   }, [hasOpenCommentForm, setSelectedRange]);
+  const python = getFiletypeFromFileName(relativePath) === "python";
+  const indentSize = detectIndentSize(externalFile.contents) ?? (python ? 4 : 2);
+  // oxlint-disable-next-line t3code/no-unreasoned-state-sync -- React has no native beforeinput with inputType, which Enter arrives as
+  useEffect(() => {
+    const root = surfaceRef.current;
+    if (!root) return;
+    return installFileEditorIndent({ root, editor: () => editorRef.current, indentSize, python });
+  }, [indentSize, python]);
   const handleLineSelectionEnd = (range: SelectedLineRange | null) => {
     setSelectedRange(range);
     if (range) {
@@ -1105,7 +1121,11 @@ function EditableFileSurface({
 
   return (
     <EditProvider createEditor={createFileEditor}>
-      <div ref={surfaceRef} className="flex min-h-0 flex-1">
+      <div
+        ref={surfaceRef}
+        className="flex min-h-0 flex-1"
+        style={{ "--diffs-tab-size": indentSize } as CSSProperties}
+      >
         <Virtualizer
           className="file-preview-virtualizer min-h-0 flex-1 overflow-auto"
           config={{
@@ -1500,7 +1520,7 @@ export default function FilePreviewPanel({
       : relativePath && attachment === undefined
         ? resolvePathLinkTarget(relativePath, cwd)
         : null;
-  const onFilePostRender = useFileLineReveal(relativePath, revealLine, revealRequestId);
+  const onFilePostRender = useFileLineReveal(cwd, relativePath, revealLine, revealRequestId);
   // Mounting the file read under the workspace mutation id refetches it after each mutation.
   useAtomMount(
     canReadFiles &&

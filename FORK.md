@@ -87,6 +87,8 @@ Chat:
 - Cmd+, opens Settings and also closes it, going back to where you were.
 - Files outside the project (like `~/.claude/CLAUDE.md`) can be edited in the right panel, not just read.
   Saving only overwrites existing files, and never touches T3's own data or git folders.
+- In the right panel's editor, Tab follows the file's own indent size (4 for Python), and Enter keeps the indent, adding a level after a `:` (Python) or an opening bracket and stepping back after `return`.
+- The right panel remembers where you were scrolled in each file when you switch threads and come back.
 
 App and server:
 
