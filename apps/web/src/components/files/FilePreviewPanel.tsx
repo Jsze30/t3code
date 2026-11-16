@@ -49,7 +49,7 @@ import {
   squashAtomCommandFailure,
 } from "@t3tools/client-runtime/state/runtime";
 import { mediaFileReference } from "@t3tools/client-runtime/media-reference";
-import { FolderTree, Globe2, WrapTextIcon } from "lucide-react";
+import { FolderTree, Globe2, PlayIcon, WrapTextIcon } from "lucide-react";
 import * as Schema from "effect/Schema";
 import {
   lazy,
@@ -100,6 +100,7 @@ import { DelimitedTablePreview } from "./DelimitedTablePreview";
 import { PreviewImage } from "./PreviewImage";
 import FileBrowserPanel from "./FileBrowserPanel";
 import { detectIndentSize, installFileEditorIndent } from "./fileEditorIndent";
+import { fileRunCommand, saveFileBeforeRun } from "./fileRun";
 import { FileExplorerPane } from "./FileExplorerPane";
 import { FileBreadcrumbs } from "./FileBreadcrumbs";
 import { breadcrumbPathOf, retainedBreadcrumbTrail, trailChildOf } from "./filePath";
@@ -168,6 +169,7 @@ interface FilePreviewPanelProps {
   onPendingChange: (relativePath: string, pending: boolean) => void;
   selectedFilePending: boolean;
   workspaceMutationId: string | null;
+  onRunInTerminal?: ((command: string) => void) | undefined;
 }
 
 const MermaidFilePreview = lazy(() =>
@@ -1306,6 +1308,7 @@ export default function FilePreviewPanel({
   onPendingChange,
   selectedFilePending,
   workspaceMutationId,
+  onRunInTerminal,
 }: FilePreviewPanelProps) {
   const relativePath =
     attachment === undefined ? resolveFilePreviewPath(requestedPath, cwd) : requestedPath;
@@ -1559,6 +1562,21 @@ export default function FilePreviewPanel({
     });
   };
 
+  const runCommand =
+    onRunInTerminal && absolutePath && relativePath && attachment === undefined && file.isFile
+      ? fileRunCommand(absolutePath)
+      : null;
+  const handleRunInTerminal = () => {
+    if (!runCommand || !relativePath || !onRunInTerminal) return;
+    void saveFileBeforeRun(environmentId, cwd, relativePath).then((saved) => {
+      if (saved) onRunInTerminal(runCommand);
+      else
+        toastManager.add(
+          stackedThreadToast({ type: "error", title: "Could not save the file before running it" }),
+        );
+    });
+  };
+
   const handleOpenInBrowser = () => {
     if (!canReadFiles || !canOperatePreview || !absolutePath || !environmentHttpBaseUrl) return;
     void (async () => {
@@ -1625,6 +1643,11 @@ export default function FilePreviewPanel({
               />
             </div>
           </ScrollArea>
+          {runCommand ? (
+            <FileSurfaceAction label="Run file in terminal" onPress={handleRunInTerminal}>
+              <PlayIcon className="size-3.5" />
+            </FileSurfaceAction>
+          ) : null}
           {absolutePath &&
           (environmentId === primaryEnvironmentId ||
             environmentId === hostEnvironmentId ||

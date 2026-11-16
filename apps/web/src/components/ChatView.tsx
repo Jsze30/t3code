@@ -3373,6 +3373,7 @@ export default function ChatView(props: ChatViewProps) {
         pendingSurfaceIds: pendingFileSurfaceIds,
         onOpenFile: openFileSurfaceStable,
         onPendingChange: handleFilePendingChangeStable,
+        onRunInTerminal: runShellCommandStable,
       }}
     />
   ) : null;
