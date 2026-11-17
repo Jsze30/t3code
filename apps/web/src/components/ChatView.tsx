@@ -2913,6 +2913,9 @@ export default function ChatView(props: ChatViewProps) {
     previewFocus: isPreviewFocused(),
     previewOpen: previewPanelOpen,
     rightPanelOpen,
+    rightPanelFocus:
+      eventTarget instanceof Element &&
+      eventTarget.closest('[data-workspace-area="panel"]') !== null,
     editableFocus: isEditableFocused(eventTarget),
     modelPickerOpen: composerRef.current?.isModelPickerOpen() ?? false,
     composerFocus:
