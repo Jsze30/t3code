@@ -91,6 +91,7 @@ Chat:
 - The right panel remembers where you were scrolled in each file when you switch threads and come back.
 - While typing a name in the right panel's editor, grey text finishes it from names already in the file, and Tab accepts it.
 - Script files (Python, JS/TS, shell, Ruby, Go and a few more) get a play button in the right panel that saves the file and runs it in the terminal; Ctrl+R in the file panel does the same.
+- Pressing F while the right panel has focus (but not while typing in it) maximizes it, and pressing F again restores it.
 
 App and server:
 
