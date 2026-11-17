@@ -103,6 +103,7 @@ import { PreviewImage } from "./PreviewImage";
 import FileBrowserPanel from "./FileBrowserPanel";
 import { detectIndentSize, installFileEditorIndent } from "./fileEditorIndent";
 import { fileRunCommand, saveFileBeforeRun } from "./fileRun";
+import { createWordCompletion } from "./fileWordCompletion";
 import { FileExplorerPane } from "./FileExplorerPane";
 import { FileBreadcrumbs } from "./FileBreadcrumbs";
 import { breadcrumbPathOf, retainedBreadcrumbTrail, trailChildOf } from "./filePath";
@@ -922,13 +923,17 @@ function EditableFileSurface({
   const { ready: editable, onPostRender: onEditablePostRender } =
     useEditableAfterHighlight(externalFile);
   const editorRef = useRef<FileEditor | null>(null);
+  const [wordCompletion] = useState(createWordCompletion);
   const editorOptions: EditorOptions<"file", FileCommentAnnotationGroup, undefined> = {
+    editPrediction: { provider: wordCompletion.provider },
     onAttach: (editor) => {
       editorRef.current = editor;
+      wordCompletion.attach(editor);
       onEditorChange(editor);
     },
     onComplete: () => {
       editorRef.current = null;
+      wordCompletion.attach(null);
       onEditorChange(null);
     },
   };
