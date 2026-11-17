@@ -1625,7 +1625,9 @@ export default function FilePreviewPanel({
     if (
       !runCommand ||
       event.key.toLowerCase() !== "r" ||
-      !(event.metaKey || event.ctrlKey) ||
+      (isMacPlatform(navigator.platform)
+        ? !event.metaKey || event.ctrlKey
+        : !event.ctrlKey || event.metaKey) ||
       event.shiftKey ||
       event.altKey ||
       !(event.target instanceof Node) ||
