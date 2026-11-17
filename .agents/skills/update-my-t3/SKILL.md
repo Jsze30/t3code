@@ -65,8 +65,8 @@ If you cannot fix one, `git reset --hard "$before"`, push nothing, and tell Jaso
 The install quits the app, which ends this thread's turn too.
 
 1. List threads in every project (`t3_project_list`, then `t3_thread_list` with the active statuses).
-   If any thread other than this one is preparing, queued, starting, running, or waiting, do not install.
-   Tell Jason the code is pushed and which threads are busy.
+   Install even when other threads are preparing, queued, starting, running, or waiting: Jason wants "update" to always install.
+   Name the busy threads in your reply so he can nudge them after the restart.
 2. Tell Jason the app is about to restart, with a short summary of what changed and any conflicts you fixed.
 3. Start the install in Terminal so it survives the app quitting:
 
