@@ -10,8 +10,10 @@ import { startAppServices } from "./appInit";
 import { AppRoot } from "./AppRoot";
 import { whenLocaleReady } from "./i18n/runtime";
 import { reloadOnceForChunkLoadError } from "./lib/chunkReloadGuard";
+import { installDesktopReloadShortcut } from "./desktopReloadShortcut";
 
 const router = startAppServices();
+installDesktopReloadShortcut();
 
 const clerkPublishableKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY as string | undefined;
 

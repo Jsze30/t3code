@@ -1623,12 +1623,11 @@ export default function FilePreviewPanel({
     );
   }
 
-  const runOnCtrlR = (event: ReactKeyboardEvent<HTMLElement>) => {
+  const runOnModR = (event: ReactKeyboardEvent<HTMLElement>) => {
     if (
       !runCommand ||
       event.key.toLowerCase() !== "r" ||
-      !event.ctrlKey ||
-      event.metaKey ||
+      !(event.metaKey || event.ctrlKey) ||
       event.shiftKey ||
       event.altKey ||
       !(event.target instanceof Node) ||
@@ -1644,7 +1643,7 @@ export default function FilePreviewPanel({
   return (
     <div
       className="flex min-h-0 flex-1 flex-col overflow-hidden bg-background"
-      onKeyDownCapture={runOnCtrlR}
+      onKeyDownCapture={runOnModR}
     >
       {breadcrumbPath !== null && breadcrumbTrail !== null ? (
         <div className={FILE_SURFACE_SUBHEADER_CLASS} data-surface-subheader>
@@ -1670,7 +1669,7 @@ export default function FilePreviewPanel({
             </div>
           </ScrollArea>
           {runCommand ? (
-            <FileSurfaceAction label="Run file in terminal (Ctrl+R)" onPress={handleRunInTerminal}>
+            <FileSurfaceAction label="Run file in terminal (Cmd+R)" onPress={handleRunInTerminal}>
               <PlayIcon className="size-3.5" />
             </FileSurfaceAction>
           ) : null}

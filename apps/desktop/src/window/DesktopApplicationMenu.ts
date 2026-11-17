@@ -316,9 +316,11 @@ export const make = Effect.gen(function* () {
         label: m(msg("View", { $context: "menu bar title" })),
         submenu: [
           /* Native reload/DevTools/zoom roles target focused guests; these commands must target the app. */
+          // The page handles Cmd+R so the file panel can run scripts with it (desktopReloadShortcut.ts).
           {
             label: m(msg("Reload")),
             accelerator: "CmdOrCtrl+R",
+            registerAccelerator: false,
             click: mainContentsClick("reload"),
           },
           // Cmd+Shift+R restarts the agent session in this build.
