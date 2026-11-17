@@ -69,9 +69,9 @@ export const DEFAULT_KEYBINDINGS: ReadonlyArray<KeybindingRule> = [
   { key: "mod+shift+b", command: "threadPanel.toggle", when: "!terminalFocus" },
   { key: "mod+t", command: "rightPanel.new", when: "rightPanelOpen && !terminalFocus" },
   {
-    key: "f",
+    key: "mod+g",
     command: "rightPanel.toggleMaximized",
-    when: "rightPanelFocus && !editableFocus && !terminalFocus",
+    when: "rightPanelFocus && !terminalFocus",
   },
   { key: "mod+d", command: "terminal.split", when: "terminalFocus" },
   { key: "mod+shift+d", command: "terminal.splitVertical", when: "terminalFocus" },
