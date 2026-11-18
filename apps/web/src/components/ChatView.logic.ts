@@ -1472,8 +1472,10 @@ export function planComposerTurn(input: {
     input.resumeCompactionTokens !== null &&
     !input.keepFullHistory &&
     !COMPACT_COMMAND_PATTERN.test(input.messageText);
+  // The server runs /compact only as its own turn, so it queues instead of steering.
   const dispatchMode =
-    input.freshContext && (input.dispatchMode === "steer" || input.dispatchMode === "restart")
+    (input.freshContext || COMPACT_COMMAND_PATTERN.test(input.messageText)) &&
+    (input.dispatchMode === "steer" || input.dispatchMode === "restart")
       ? "queue"
       : input.dispatchMode;
   return {

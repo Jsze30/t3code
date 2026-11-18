@@ -92,6 +92,7 @@ Chat:
 - While typing a name in the right panel's editor, grey text finishes it from names already in the file, and Tab accepts it.
 - Script files (Python, JS/TS, shell, Ruby, Go and a few more) get a play button in the right panel that saves the file and runs it in the terminal; Cmd+R in the file panel does the same, while Cmd+R anywhere else still reloads the app.
 - Cmd+G while the right panel has focus maximizes it, and pressing it again restores it.
+- `/compact` can be sent while a turn is running: it waits in the queue and compacts once the turn ends.
 
 App and server:
 
