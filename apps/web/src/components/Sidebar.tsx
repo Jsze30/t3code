@@ -3094,8 +3094,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               input: {
                 threadId: workerRef.threadId,
                 projectId: thread.projectId,
-                // oxlint-disable-next-line t3code/no-untranslated-copy -- fork-only copy
-                title: "New worker",
+                // oxlint-disable-next-line t3code/no-untranslated-copy -- the server only auto-names a thread with this exact title
+                title: "New thread",
                 modelSelection: thread.modelSelection,
                 runtimeMode: thread.runtimeMode,
                 interactionMode: thread.interactionMode,

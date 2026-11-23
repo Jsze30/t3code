@@ -62,6 +62,7 @@ Sidebar:
   Clicking the open lead again shows or hides them, with an animation.
 - Settling a lead asks whether to settle its workers too.
 - Right-clicking a card offers New worker thread, which opens a worker of that thread in the same workspace and settings.
+  Its first message names it, like any new thread.
 - Standalone leads (`standalone: true` on launch) are not workers of the thread that launched them.
 - Dropping a thread on the middle of another card makes it that card's worker (unpinning it if pinned).
   Dragging a worker out of its lead, or right-clicking it and picking Remove from lead, makes it a normal thread again.
