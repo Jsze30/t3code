@@ -1075,8 +1075,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
       toastManager.add(
         stackedThreadToast({
           type: "error",
+          // oxlint-disable-next-line t3code/no-untranslated-copy -- fork-only copy
           title: leadId === null ? "Could not remove from lead" : "Could not move under lead",
-          description: error instanceof Error ? error.message : "An error occurred.",
+          description: error instanceof Error ? error.message : gt("An error occurred."),
         }),
       );
     }
@@ -2394,8 +2395,8 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           toastManager.add(
             stackedThreadToast({
               type: "error",
-              title: "Failed to unpin thread",
-              description: error instanceof Error ? error.message : "An error occurred.",
+              title: gt("Failed to unpin thread"),
+              description: error instanceof Error ? error.message : gt("An error occurred."),
             }),
           );
         }
@@ -3093,6 +3094,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               input: {
                 threadId: workerRef.threadId,
                 projectId: thread.projectId,
+                // oxlint-disable-next-line t3code/no-untranslated-copy -- fork-only copy
                 title: "New worker",
                 modelSelection: thread.modelSelection,
                 runtimeMode: thread.runtimeMode,
@@ -3109,8 +3111,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
               toastManager.add(
                 stackedThreadToast({
                   type: "error",
+                  // oxlint-disable-next-line t3code/no-untranslated-copy -- fork-only copy
                   title: "Could not create worker thread",
-                  description: error instanceof Error ? error.message : "An error occurred.",
+                  description: error instanceof Error ? error.message : gt("An error occurred."),
                 }),
               );
             }
@@ -3329,8 +3332,9 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
           toastManager.add(
             stackedThreadToast({
               type: "error",
+              // oxlint-disable-next-line t3code/no-untranslated-copy -- fork-only copy
               title: "Could not restart agent session",
-              description: error instanceof Error ? error.message : "An error occurred.",
+              description: error instanceof Error ? error.message : gt("An error occurred."),
             }),
           );
         });
@@ -3354,6 +3358,7 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
     window.addEventListener("keydown", onWindowKeyDown);
     return () => window.removeEventListener("keydown", onWindowKeyDown);
   }, [
+    gt,
     draftIdByRowKey,
     keybindings,
     navigateToDraft,
@@ -4250,14 +4255,19 @@ export default function Sidebar({ routeReveal }: { routeReveal: SidebarRouteReve
         <AlertDialogPopup>
           <AlertDialogHeader>
             <AlertDialogTitle>
+              {/* oxlint-disable-next-line t3code/no-untranslated-copy -- fork-only copy */}
               {`Settle its ${leadSettlePrompt?.workers.length ?? 0} ${leadSettlePrompt?.workers.length === 1 ? "worker" : "workers"} too?`}
             </AlertDialogTitle>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogClose render={<Button variant="outline" />}>Cancel</AlertDialogClose>
+            <AlertDialogClose render={<Button variant="outline" />}>
+              <T>Cancel</T>
+            </AlertDialogClose>
             <Button variant="outline" onClick={() => settleLead(false)}>
+              {/* oxlint-disable-next-line t3code/no-untranslated-copy -- fork-only copy */}
               Just the lead
             </Button>
+            {/* oxlint-disable-next-line t3code/no-untranslated-copy -- fork-only copy */}
             <Button onClick={() => settleLead(true)}>Settle all</Button>
           </AlertDialogFooter>
         </AlertDialogPopup>
